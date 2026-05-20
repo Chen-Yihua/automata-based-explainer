@@ -1,8 +1,8 @@
-# anchor-automata-explainer
+# automata-based-explainer
 
 ![](https://img.shields.io/badge/python-3.10%2B-blue)
 
-**Anchor-Automata-Explainer** 是一個結合 Anchor 解釋器與 DFA/RPNI 學習的解釋型 AI 工具，支援 Tabular、Text、Image 類型資料，並能將模型行為以可視化自動機（DFA）規則呈現，幫助理解模型決策依據。
+**Automata-Based-Explainer** 是一個結合 DFA 學習的解釋型 AI 工具，支援 relagur 與 non-regular language 的資料，並能將模型行為以可視化自動機（DFA）規則呈現，幫助理解模型決策依據。
 
 本專案在原 anchor 進行以下增強與記錄：
 
