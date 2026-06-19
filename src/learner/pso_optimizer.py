@@ -2,11 +2,10 @@
 PSO-based DFA Optimizer
 
 This module implements a Particle Swarm Optimization (PSO) approach for optimizing
-Deterministic Finite Automata (DFA) by minimizing the number of states while
-maintaining training accuracy above a specified threshold.
+Deterministic Finite Automata (DFA).
 
 Key Components:
-1. Objective function: Penalizes low accuracy, rewards state reduction
+1. Objective function: training accuracy and state-ratio tradeoff
 2. Discrete space mapping: PSO particle positions → DFA modifications
 3. Integration with existing DFA operators: _propose_delete, _propose_merge, _propose_delta
 4. State sanitation: Applies remove_unreachable_states after each DFA modification
@@ -27,7 +26,6 @@ except ImportError:
     print("[WARNING] pyswarms not found. PSO optimizer will not be available.")
 
 from .dfa_learner import remove_unreachable_states
-
 
 class PSOAutomataOptimizer:
     """
@@ -108,6 +106,7 @@ class PSOAutomataOptimizer:
             raise ImportError("pyswarms is required for PSOAutomataOptimizer. Install with: pip install pyswarms")
         
         self.initial_dfa = initial_dfa
+        self.initial_states = max(1, len(initial_dfa.states)) if hasattr(initial_dfa, 'states') else 1
         self.threshold = threshold
         self.data = data or []
         self.labels = labels if labels is not None else np.array([])
@@ -117,9 +116,12 @@ class PSOAutomataOptimizer:
         self.verbose = verbose
         
         # PSO edit-space configuration
-        self.slot_count = 4                 # Fixed number of operation slots per particle
-        self.slot_width = 3                 # (operation_type, target_signature, probability)
-        self.max_ops_per_iteration = max(1, max_ops_per_iteration or 3)
+        # max_ops_per_iteration controls how many discrete DFA edits one particle can apply.
+        # Keep default behavior at 1, but allow larger values for deeper compression trajectories.
+        configured_ops = int(max_ops_per_iteration) if max_ops_per_iteration is not None else 1
+        self.slot_count = max(1, configured_ops)
+        self.slot_width = 3                 # (operation_type, target1_idx, target2_idx)
+        self.max_ops_per_iteration = max(1, configured_ops)
         slot_beam_default = slot_beam_size if slot_beam_size is not None else 5
         self.slot_beam_size = max(1, slot_beam_default)
         self.dimensions = self.slot_count * self.slot_width
@@ -135,10 +137,8 @@ class PSOAutomataOptimizer:
         self.state_metrics: Dict[int, Dict] = {}
         self._init_state_metrics()
         
-        # DFA sequence for each particle: list of (operation_type, candidate_idx)
-        # operation_type: 0=DELETE, 1=MERGE, 2=DELTA
-        self.particle_dfas: Dict[int, Any] = {}  # particle_id -> current_dfa
-        self.particle_histories: Dict[int, List[Tuple[str, int]]] = {}  # particle_id -> list of operations
+        # Deduplication tracking (for _propose_delete/merge/delta)
+        self.seen_signatures: set = set()
         
         # Global best tracking
         self.gbest_dfa = None
@@ -147,16 +147,33 @@ class PSOAutomataOptimizer:
         self.gbest_val_accuracy = 0.0
         self.gbest_states = float('inf')
         
+        # Early stopping: track consecutive iterations without improvement
+        self.pso_no_improve_count = 0
+        self.pso_no_improve_threshold = 10
+        self.pso_last_best_fitness = float('inf')
+        
         # All candidates history (for comparison with other methods)
         self.all_history: List[Dict] = []
         self.seen_ids: set = set()
         # Evaluation budget tracking
         self.evaluations_count: int = 0
         self.max_evaluations: Optional[int] = max_evaluations
+        self.reached_two_states: bool = False
         
-        # Evaluate initial DFA and set as initial global best
-        initial_accuracy, initial_states, initial_loss, initial_val_acc = self._evaluate_and_cache(self.initial_dfa)
-        self._update_gbest(self.initial_dfa, initial_accuracy, initial_states, initial_loss, initial_val_acc)
+        # Evaluate initial DFA and set as initial global best.
+        # _evaluate_and_cache returns only (accuracy, num_states, loss).
+        # Validation accuracy is computed separately for initial/final reporting.
+        initial_accuracy, initial_states, initial_loss = self._evaluate_and_cache(self.initial_dfa)
+        initial_val_acc = self._compute_validation_accuracy(self.initial_dfa)
+        self.evaluations_count += 1  # Count initial evaluation against budget
+        
+        # initialize gbest with initial_dfa, regardless of accuracy threshold
+        # This ensures PSO has a baseline to work from and can explore toward the threshold
+        self.gbest_dfa = deepcopy(self.initial_dfa)
+        self.gbest_fitness = initial_loss
+        self.gbest_accuracy = initial_accuracy
+        self.gbest_val_accuracy = initial_val_acc
+        self.gbest_states = initial_states
         self._add_to_history(self.initial_dfa, initial_accuracy, initial_val_acc)
         
         if self.verbose:
@@ -166,21 +183,12 @@ class PSOAutomataOptimizer:
     def _init_state_metrics(self):
         """Initialize state metrics dictionary (used by learner's update_state_metrics)"""
         self.state_metrics = {
-            't_idx': {},           # Row indices where automaton applies
             't_nsamples': {},      # Total number of samples
-            't_accepted': {},      # Number of accepted samples
             't_positives': {},     # True positives (correctly accepted)
             't_negatives': {},     # True negatives (correctly rejected)
-            't_order': {},         # Operation history
-            'current_idx': 0,      # Current index
         }
     
-    def _compute_validation_accuracy(self, dfa) -> float:
-        """Compute validation accuracy on validation dataset."""
-        if self.learner is None or len(self.validation_data) == 0:
-            return 0.0
-        return self.learner.compute_accuracy(dfa, self.validation_data, self.validation_labels)
-    
+
     def _add_to_history(self, dfa, training_accuracy: float, validation_accuracy: float) -> None:
         """Track DFA in history for final comparison (via learner)."""
         self.learner.add_to_history(
@@ -189,6 +197,17 @@ class PSOAutomataOptimizer:
             use_automata_key=True
         )
     
+    def _compute_validation_accuracy(self, dfa) -> float:
+        """Compute validation accuracy for reporting (initial/final only)."""
+        if self.learner is None or len(self.validation_data) == 0 or len(self.validation_labels) == 0:
+            return 0.0
+        try:
+            val_accepts = np.array([self.learner.check_path_accepted(dfa, p) for p in self.validation_data])
+            val_correct = np.sum(val_accepts == self.validation_labels)
+            return float(val_correct) / len(self.validation_labels)
+        except Exception:
+            return 0.0
+
     def _evaluate_and_cache(self, dfa):
         """
         Evaluate DFA and cache metrics.
@@ -201,61 +220,42 @@ class PSOAutomataOptimizer:
         Returns
         -------
         tuple
-            (accuracy, num_states, loss, validation_accuracy)
+            (accuracy, num_states, loss)
         """
         dfa_id = id(dfa)
+        n_samples = len(self.data) if len(self.data) > 0 else 1
         
-        # Skip if already cached
+        # Check if cached
         if dfa_id in self.state_metrics['t_nsamples']:
-            accuracy = self._compute_accuracy(dfa_id)
-            num_states = len(dfa.states)
-            loss = self._compute_loss(accuracy, num_states)
-            val_acc = self._compute_validation_accuracy(dfa)
-            return accuracy, num_states, loss, val_acc
-        
-        # Evaluate using learner's path checking method
-        if self.learner and len(self.data) > 0 and len(self.labels) > 0:
-            accepts = np.array([self.learner.check_path_accepted(dfa, p) for p in self.data])
-            true_accept = np.sum((self.labels == 1) & (accepts == True))
-            false_reject = np.sum((self.labels == 0) & (accepts == False))
+            true_pos = self.state_metrics['t_positives'].get(dfa_id, 0)
+            true_neg = self.state_metrics['t_negatives'].get(dfa_id, 0)
+            accuracy = (true_pos + true_neg) / n_samples
         else:
-            true_accept = 0
-            false_reject = 0
-            accepts = np.array([False] * len(self.data))
+            # Evaluate using learner's path checking method
+            if self.learner and len(self.data) > 0 and len(self.labels) > 0:
+                accepts = np.array([self.learner.check_path_accepted(dfa, p) for p in self.data])
+                true_accept = np.sum((self.labels == 1) & (accepts == True))
+                false_reject = np.sum((self.labels == 0) & (accepts == False))
+            else:
+                true_accept = 0
+                false_reject = 0
+            
+            # Cache metrics
+            self.state_metrics['t_nsamples'][dfa_id] = float(n_samples)
+            self.state_metrics['t_positives'][dfa_id] = float(true_accept)
+            self.state_metrics['t_negatives'][dfa_id] = float(false_reject)
+            
+            accuracy = (true_accept + false_reject) / n_samples
         
-        # Cache metrics
-        self.state_metrics['t_nsamples'][dfa_id] = float(len(self.data))
-        self.state_metrics['t_accepted'][dfa_id] = float(np.sum(accepts))
-        self.state_metrics['t_positives'][dfa_id] = float(true_accept)
-        self.state_metrics['t_negatives'][dfa_id] = float(false_reject)
-        self.state_metrics['t_order'][dfa_id] = []
-        
-        accuracy = self._compute_accuracy(dfa_id)
         num_states = len(dfa.states)
         loss = self._compute_loss(accuracy, num_states)
-        val_acc = self._compute_validation_accuracy(dfa)
-        
-        if self.verbose:
-            val_str = f", val_acc={val_acc:.4f}" if len(self.validation_data) > 0 else ""
-            print(f"  [EVAL] Accuracy: {accuracy:.4f}, States: {num_states}, Loss: {loss:.4f}{val_str}")
-        
-        return accuracy, num_states, loss, val_acc
-    
-    def _compute_accuracy(self, dfa_id: int) -> float:
-        """Compute accuracy from cached metrics."""
-        n_samples = self.state_metrics['t_nsamples'].get(dfa_id, 1)
-        if n_samples == 0:
-            return 0.0
-        true_pos = self.state_metrics['t_positives'].get(dfa_id, 0)
-        true_neg = self.state_metrics['t_negatives'].get(dfa_id, 0)
-        accuracy = (true_pos + true_neg) / n_samples
-        return float(accuracy)
+        return accuracy, num_states, loss
     
     def _compute_loss(self, accuracy: float, num_states: int) -> float:
         """
-        Compute loss function as per specification:
-        - If accuracy < THRESHOLD: Loss = 1000 + (THRESHOLD - accuracy) × 100 (penalty for low accuracy)
-        - If accuracy >= THRESHOLD: Loss = num_states (reward for simplification)
+        Compute PSO loss using the original baseline formula.
+
+        Loss = -accuracy + (num_states / initial_states)
         
         Parameters
         ----------
@@ -269,16 +269,14 @@ class PSOAutomataOptimizer:
         float
             Loss value to minimize
         """
-        if accuracy < self.threshold:
-            # Strong penalty if accuracy is below threshold
-            penalty = 1000.0 + (self.threshold - accuracy) * 100.0
-            return penalty
-        else:
-            # Reward for maintaining accuracy: minimize state count
-            return float(num_states)
+        return -accuracy+num_states/self.initial_states
     
     def _update_gbest(self, dfa, accuracy: float, num_states: int, loss: float, val_accuracy: float = 0.0):
-        """Update global best if current DFA is better."""
+        """Update global best if current DFA has better loss (NO threshold check).
+        
+        This is identical to GA/SA behavior: optimize freely during search,
+        let _select_final() handle threshold filtering at the end.
+        """
         if loss < self.gbest_fitness:
             self.gbest_dfa = deepcopy(dfa)
             self.gbest_fitness = loss
@@ -308,90 +306,110 @@ class PSOAutomataOptimizer:
         """
         n_particles = X.shape[0]
         losses = np.zeros(n_particles)
+        iteration_improved = False
+        iteration_best_fitness = self.pso_last_best_fitness
         
         for particle_id in range(n_particles):
-            # Check budget before evaluating this particle
+            # Budget check: Each particle evaluation counts as 1 unit
+            # (Standard PSO: evaluations_count = n_particles evaluated per iteration)
             if self.max_evaluations is not None and self.evaluations_count >= self.max_evaluations:
-                # Signal that budget is exhausted by raising an exception to stop optimizer
+                # Budget exhausted - signal to stop optimizer
+                if self.verbose:
+                    print(f"  [PSO-obj] Budget exhausted before particle {particle_id}: {self.evaluations_count}/{self.max_evaluations}")
                 raise RuntimeError("PSO budget exhausted")
-            # Get or initialize particle DFA
-            if particle_id not in self.particle_dfas:
-                self.particle_dfas[particle_id] = deepcopy(self.initial_dfa)
-                self.particle_histories[particle_id] = []
             
             # Map continuous position to discrete DFA sequence
-            dfa, operations = self._map_position_to_dfa(
-                particle_id, X[particle_id]
-            )
+            # (Multiple internal slot operations may occur, but counted as 1 particle evaluation)
+            dfa, ops = self._map_position_to_dfa(X[particle_id])
+            
+            # Increment evaluation count (1 per particle, not per slot operation)
+            # This correctly accounts for PSO budget: max_evals = n_particles × n_iterations
+            self.evaluations_count += 1
             
             # Ensure DFA is valid (no unreachable states)
             remove_unreachable_states(dfa)
             
             # Evaluate DFA
-            accuracy, num_states, loss, val_acc = self._evaluate_and_cache(dfa)
+            accuracy, num_states, loss = self._evaluate_and_cache(dfa)
 
             # Track in history
-            self._add_to_history(dfa, accuracy, val_acc)
+            self._add_to_history(dfa, accuracy, 0.0)
             
             # Update global best
-            self._update_gbest(dfa, accuracy, num_states, loss, val_acc)
+            self._update_gbest(dfa, accuracy, num_states, loss, 0.0)
             
+            # Track whether this iteration improved the running best.
+            if loss < iteration_best_fitness:
+                iteration_best_fitness = loss
+                self.pso_last_best_fitness = loss
+                iteration_improved = True
+
             losses[particle_id] = loss
+
+        # Early stopping is based on full PSO iterations, not individual particles.
+        if iteration_improved:
+            self.pso_no_improve_count = 0
+        else:
+            self.pso_no_improve_count += 1
+            if self.pso_no_improve_count >= self.pso_no_improve_threshold:
+                if self.verbose:
+                    print(f"  [PSO] Early stopping: {self.pso_no_improve_count} iterations without improvement")
+                raise RuntimeError(
+                    f"PSO early stopping: no improvement for {self.pso_no_improve_threshold} iterations"
+                )
         
         return losses
-    
-    def _map_position_to_dfa(self, particle_id: int, position: np.ndarray) -> Tuple[Any, List[str]]:
+    def _map_position_to_dfa(self, position: np.ndarray) -> Tuple[Any, List[str]]:
         """
         Map continuous particle position to a DFA through discrete operations.
         
         Strategy:
-        1. Start from the particle's cached DFA (initial DFA on first visit)
-        2. Divide dimensions into phases
-        3. Each phase corresponds to ONE modification operation
-        4. For each dimension, determine operation type and candidate index
-        5. Apply modification, ensuring validity with remove_unreachable_states
+        1. Start from INITIAL DFA
+        2. Divide dimensions into slots (operation slots)
+        3. Each slot = [op_type_value, target1_value, target2_value]
+        4. Decode op_type_value → 'DELETE' / 'MERGE' / 'DELTA' via tanh normalization
+        5. Select target candidate(s) via normalized target values
+        6. Apply the SPECIFIC operation via _apply_slot_operation(op_type)
+        7. Ensure validity with remove_unreachable_states
+        
+        The key difference from trajectory-based approaches:
+        - Every particle position uniquely maps to one DFA
+        - PSO velocity updates modify positions in a metric space
+        - pbest and gbest are meaningful position references
         
         Parameters
         ----------
-        particle_id : int
-            Unique particle identifier
         position : np.ndarray
             Continuous position vector (typically in [-1, 1] range from PSO)
             
         Returns
         -------
         tuple
-            (modified_dfa, list_of_operations)
+            (modified_dfa, list_of_operations_applied)
         """
-        # Start from the particle's latest DFA so edits accumulate across iterations
-        base_dfa = self.particle_dfas.get(particle_id, self.initial_dfa)
-        current_dfa = deepcopy(base_dfa)
+        # Always start from initial DFA
+        # This ensures same position → same DFA (deterministic mapping)
+        current_dfa = deepcopy(self.initial_dfa)
         operations = []
         
         slot_vectors = self._extract_slot_vectors(position)
         if not slot_vectors:
             return current_dfa, operations
 
-        # Softmax over slot probabilities so velocity updates change selection bias smoothly
-        slot_probs = self._softmax([slot['prob_logit'] for slot in slot_vectors])
-        for idx, prob in enumerate(slot_probs):
-            slot_vectors[idx]['probability'] = prob
-
-        # Execute top-k slots (highest probability first)
-        slot_vectors.sort(key=lambda s: s.get('probability', 0.0), reverse=True)
         max_slots = min(self.max_ops_per_iteration, len(slot_vectors))
 
         for slot_idx in range(max_slots):
             slot = slot_vectors[slot_idx]
             op_type = self._decode_operation_type(slot['op_value'])
             if op_type == "SKIP":
-                operations.append("SKIP:INVALID_OP")
+                operations.append("SKIP")
                 continue
 
             next_dfa, descriptor = self._apply_slot_operation(
                 current_dfa,
                 op_type,
-                slot['target_value']
+                slot['target1_value'],
+                slot['target2_value']
             )
 
             if next_dfa is None:
@@ -399,17 +417,12 @@ class PSOAutomataOptimizer:
                 continue
 
             current_dfa = next_dfa
-            prob_value = slot.get('probability', 0.0)
-            operations.append(f"{descriptor}:p={prob_value:.2f}")
-        
-        # Cache particle DFA so the next iteration keeps building on the latest edits
-        self.particle_dfas[particle_id] = deepcopy(current_dfa)
-        previous_ops = self.particle_histories.get(particle_id, [])
-        self.particle_histories[particle_id] = previous_ops + operations
+            operations.append(f"{op_type}:{descriptor}")
         
         return current_dfa, operations
 
     def _extract_slot_vectors(self, position: np.ndarray) -> List[Dict[str, float]]:
+        """Extract slot vectors from position. Each slot encodes an operation with two independent targets."""
         slot_vectors: List[Dict[str, float]] = []
         for slot_idx in range(self.slot_count):
             base_idx = slot_idx * self.slot_width
@@ -417,9 +430,9 @@ class PSOAutomataOptimizer:
                 break
             slot_vectors.append({
                 'slot_idx': slot_idx,
-                'op_value': float(position[base_idx]),
-                'target_value': float(position[base_idx + 1]),
-                'prob_logit': float(position[base_idx + 2]),
+                'op_value': float(position[base_idx]),          # Operation type encoding
+                'target1_value': float(position[base_idx + 1]),  # Primary target (DELETE: state; MERGE: 1st state; DELTA: src state)
+                'target2_value': float(position[base_idx + 2]),  # Secondary target (MERGE: 2nd state; DELTA: dst state)
             })
         return slot_vectors
 
@@ -427,57 +440,119 @@ class PSOAutomataOptimizer:
         normalized = self._normalize_to_unit_interval(raw_value)
         if normalized < 1 / 3:
             return "DELETE"
-        if normalized < 2 / 3:
+        elif normalized < 2 / 3:
             return "MERGE"
-        if normalized <= 1.0:
+        else:
             return "DELTA"
-        return "SKIP"
 
-    def _apply_slot_operation(self, current_dfa, op_type: str, target_value: float) -> Tuple[Optional[Any], str]:
+    def _apply_slot_operation(self, current_dfa, op_type: str, target1_value: float, target2_value: float) -> Tuple[Optional[Any], str]:
+        """
+        Apply a specific DFA operation (DELETE, MERGE, or DELTA) based on op_type.
+        
+        Uses the new single-candidate generators (_propose_delete_single, etc.) to avoid
+        generating multiple candidates per operation. Each operation now maps directly
+        to a single candidate DFA, reducing computational waste.
+        
+        The two target values provide independent control:
+        - DELETE: uses target1_value to select state to delete; target2_value ignored
+        - MERGE: uses target1_value and target2_value to independently select two states to merge
+        - DELTA: uses target1_value as source state, target2_value as destination state
+        
+        Parameters
+        ----------
+        current_dfa : DFA
+            Current DFA to modify
+        op_type : str
+            Operation type to apply: 'DELETE', 'MERGE', or 'DELTA'
+        target1_value : float
+            Primary continuous value for selection index
+        target2_value : float
+            Secondary continuous value for selection index (used in MERGE and DELTA)
+            
+        Returns
+        -------
+        tuple
+            (modified_dfa, descriptor_string)
+        """
         if self.learner is None:
             raise RuntimeError("Learner is required for PSO operations")
 
-        seen_signatures = set()
         next_dfa = None
         descriptor = ""
+        n_states = len(current_dfa.states)
 
         try:
-            # === FIX: Use _propose_single_neighbor instead of batch methods ===
-            # Avoids generating N candidates and using only 1 (no waste)
-            # _propose_single_neighbor respects op_type indirectly via the mutation operation
+            # Decode both target values to state indices
+            target1_idx = self._select_candidate_index(target1_value, n_states)
+            target2_idx = self._select_candidate_index(target2_value, n_states)
             
-            # Generate exactly 1 neighbor (no waste)
-            next_dfa = self.learner._propose_single_neighbor(
-                current_dfa,
-                self.state_metrics,
-                self.data,
-                self.labels,
-                seen_signatures
-            )
+            if op_type == "DELETE":
+                # Delete the state at target1_idx
+                next_dfa = self.learner._propose_delete_single(
+                    current_dfa,
+                    target1_idx,
+                    self.data,
+                    self.labels,
+                    self.seen_signatures
+                )
+                descriptor = f"DELETE[s{target1_idx}]"
+                    
+            elif op_type == "MERGE":
+                # Merge state at target1_idx with state at target2_idx (independent selection)
+                # Ensure we don't merge a state with itself
+                if target1_idx == target2_idx:
+                    if n_states > 1:
+                        target2_idx = (target1_idx + 1) % n_states
+                    else:
+                        # n_states=1: cannot merge single state
+                        descriptor = f"MERGE✗INVALID(only_1_state)"
+                        return deepcopy(current_dfa), descriptor
+                
+                next_dfa = self.learner._propose_merge_single(
+                    current_dfa,
+                    target1_idx,
+                    target2_idx,
+                    self.data,
+                    self.labels,
+                    self.seen_signatures
+                )
+                descriptor = f"MERGE[s{target1_idx}↔s{target2_idx}]"
+                    
+            elif op_type == "DELTA":
+                # Add transition from state target1_idx to state target2_idx
+                # More precise than fixed (target_idx, target_idx)
+                next_dfa = self.learner._propose_delta_single(
+                    current_dfa,
+                    target1_idx,
+                    target2_idx,
+                    self.data,
+                    self.labels,
+                    self.seen_signatures
+                )
+                descriptor = f"DELTA[s{target1_idx}→s{target2_idx}]"
+            else:
+                # Invalid operation type
+                descriptor = "INVALID_OP_TYPE"
             
             if next_dfa is not None:
-                # Count: exactly 1 evaluation per _propose_single_neighbor call
-                self.evaluations_count += 1
-                descriptor = "SINGLE_NEIGHBOR"
+                # DFA validity will be ensured in objective_function
+                descriptor += "✓"
             else:
-                # Fallback: copy current if mutation fails
+                # No valid candidate generated for this specific operation
                 next_dfa = deepcopy(current_dfa)
-                descriptor = "FALLBACK_COPY"
-                # Still increment count for fairness with evaluation budget
-                self.evaluations_count += 1
+                descriptor += "✗COPY"
                 
         except Exception as exc:
             if self.verbose:
-                print(f"  [WARN] Neighbor generation failed: {str(exc)[:50]}")
-            # Fallback: copy current and increment count
+                print(f"  [WARN] Operation {op_type} failed: {str(exc)[:50]}")
+            # Fallback: copy current
             next_dfa = deepcopy(current_dfa)
-            descriptor = "ERROR_FALLBACK"
-            self.evaluations_count += 1
+            descriptor = f"{op_type}✗COPY"
 
         # Sanity check
         if next_dfa is None:
             next_dfa = deepcopy(current_dfa)
-            descriptor = "NULL_FALLBACK"
+            descriptor = f"{descriptor}→NULL_FALLBACK"
         
         return next_dfa, descriptor
 
@@ -493,16 +568,6 @@ class PSOAutomataOptimizer:
         normalized = (bounded + 1.0) / 2.0
         return max(0.0, min(1.0, normalized))
 
-    def _softmax(self, logits: List[float]) -> List[float]:
-        if not logits:
-            return []
-        max_logit = max(logits)
-        exp_vals = [math.exp(logit - max_logit) for logit in logits]
-        total = sum(exp_vals)
-        if total == 0.0:
-            return [1.0 / len(logits)] * len(logits)
-        return [val / total for val in exp_vals]
-    
     def optimize(self, 
                  n_particles: Optional[int] = None,
                  n_iterations: Optional[int] = None,
@@ -540,7 +605,6 @@ class PSOAutomataOptimizer:
             print(f"\n[PSO] Starting optimization...")
             print(f"  Particles: {n_particles}")
             print(f"  Iterations: {n_iterations}")
-            print(f"  Threshold: {self.threshold}")
             print(f"  Initial states: {len(self.initial_dfa.states)}")
         
         # PSO configuration
@@ -563,25 +627,27 @@ class PSOAutomataOptimizer:
             init_pos=np.random.uniform(-1, 1, size=(n_particles, dimensions))
         )
         
-        trajectory = []
-        
-        # Run optimization with custom callback
-        def logging_callback(current_cost, dimension, iteration):
-            best_loss = np.min(current_cost)
-            trajectory.append(best_loss)
-            if self.verbose and iteration % 2 == 0:
-                print(f"  [Iteration {iteration}] Best loss: {best_loss:.4f}")
-        
+        stop_reason = ""
         try:
+            # Run PSO optimization
+            # Note: pyswarms evaluates n_particles candidates per iteration
+            # with max_evaluations budget distributed across iterations
             final_cost, final_pos = optimizer.optimize(
                 self.objective_function,
                 iters=n_iterations,
-                verbose=False,
-                callback=logging_callback
+                verbose=self.verbose
             )
-        except Exception as e:
+        except RuntimeError as e:
+            stop_reason = str(e)
             if self.verbose:
-                print(f"[PSO WARNING] Optimization interrupted: {e}")
+                if "early stopping" in stop_reason.lower() or "budget exhausted" in stop_reason.lower():
+                    print(f"[PSO] Optimization stopped: {stop_reason}")
+                else:
+                    print(f"[PSO WARNING] Optimization interrupted: {stop_reason}")
+        except Exception as e:
+            stop_reason = str(e)
+            if self.verbose:
+                print(f"[PSO WARNING] Optimization interrupted: {stop_reason}")
         
         if self.verbose:
             print(f"\n[PSO] Optimization complete!")
@@ -599,8 +665,12 @@ class PSOAutomataOptimizer:
         success = not np.isinf(self.gbest_fitness) and self.gbest_dfa is not None
         if success:
             reason = f"PSO found solution with accuracy {self.gbest_accuracy:.4f} and {int(self.gbest_states)} states"
+            if stop_reason:
+                reason += f" (stopped: {stop_reason})"
         else:
             reason = "PSO failed to find valid solution (no automaton met validation criteria)"
+            if stop_reason:
+                reason += f" (stopped: {stop_reason})"
         
         result = {
             'best_dfa': self.gbest_dfa,
@@ -608,7 +678,7 @@ class PSOAutomataOptimizer:
             'best_validation_accuracy': float(self.gbest_val_accuracy),
             'best_states': best_states,
             'best_loss': best_loss,
-            'iterations': len(trajectory),
+            'iterations': n_iterations,
             'threshold': self.threshold,
             'all_history': self.all_history,  # Include all candidates for comparison
             'evaluations': int(self.evaluations_count),
@@ -618,7 +688,7 @@ class PSOAutomataOptimizer:
         }
         
         if save_trajectory:
-            result['trajectory'] = trajectory
+            result['trajectory'] = None  # pyswarms doesn't provide trajectory via callback
         
         return result
 
@@ -627,53 +697,53 @@ class PSOAutomataOptimizer:
 # Convenience function for easy integration
 # ============================================================================
 
-def optimize_dfa_with_pso(initial_dfa,
-                          learner,
-                          data: List,
-                          labels: np.ndarray,
-                          threshold: float = 0.8,
-                          n_particles: int = 10,
-                          n_iterations: int = 20,
-                          verbose: bool = True) -> Dict[str, Any]:
-    """
-    Convenience function to quickly optimize a DFA using PSO.
+# def optimize_dfa_with_pso(initial_dfa,
+#                           learner,
+#                           data: List,
+#                           labels: np.ndarray,
+#                           threshold: float = 0.8,
+#                           n_particles: int = 10,
+#                           n_iterations: int = 20,
+#                           verbose: bool = True) -> Dict[str, Any]:
+#     """
+#     Convenience function to quickly optimize a DFA using PSO.
     
-    Parameters
-    ----------
-    initial_dfa : Dfa
-        Starting DFA for optimization
-    learner : DFALearner
-        Learner instance with propose methods
-    data : list
-        Training sequences
-    labels : np.ndarray
-        Training labels (binary)
-    threshold : float
-        Minimum required accuracy (default: 0.8)
-    n_particles : int
-        Number of particles (default: 10)
-    n_iterations : int
-        Number of iterations (default: 20)
-    verbose : bool
-        Enable logging (default: True)
+#     Parameters
+#     ----------
+#     initial_dfa : Dfa
+#         Starting DFA for optimization
+#     learner : DFALearner
+#         Learner instance with propose methods
+#     data : list
+#         Training sequences
+#     labels : np.ndarray
+#         Training labels (binary)
+#     threshold : float
+#         Minimum required accuracy (default: 0.8)
+#     n_particles : int
+#         Number of particles (default: 10)
+#     n_iterations : int
+#         Number of iterations (default: 20)
+#     verbose : bool
+#         Enable logging (default: True)
         
-    Returns
-    -------
-    dict
-        Optimization results with 'best_dfa', 'best_accuracy', 'best_states', etc.
-    """
-    optimizer = PSOAutomataOptimizer(
-        initial_dfa=initial_dfa,
-        threshold=threshold,
-        data=data,
-        labels=labels,
-        learner=learner,
-        n_particles=n_particles,
-        n_iterations=n_iterations,
-        verbose=verbose
-    )
+#     Returns
+#     -------
+#     dict
+#         Optimization results with 'best_dfa', 'best_accuracy', 'best_states', etc.
+#     """
+#     optimizer = PSOAutomataOptimizer(
+#         initial_dfa=initial_dfa,
+#         threshold=threshold,
+#         data=data,
+#         labels=labels,
+#         learner=learner,
+#         n_particles=n_particles,
+#         n_iterations=n_iterations,
+#         verbose=verbose
+#     )
     
-    return optimizer.optimize(save_trajectory=True)
+#     return optimizer.optimize(save_trajectory=True)
 
 
 __all__ = [
