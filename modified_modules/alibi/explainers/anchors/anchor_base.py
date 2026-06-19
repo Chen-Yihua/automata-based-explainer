@@ -4,7 +4,6 @@ from collections import defaultdict, namedtuple
 import random
 from typing import Callable, Dict, List, Optional, Set, Tuple
 import numpy as np
-from datasets.og_loader import OGD2
 from learner.dfa_learner import make_dfa_complete, trim_dfa
 from automaton.utils import plot_beam_stats, plot_dfa_beam_stats
 from modified_modules.alibi.utils.distributions import kl_bernoulli
@@ -66,7 +65,6 @@ class AnchorBaseBeam:
             't_coverage_idx': defaultdict(set),  # index of anchors in coverage set
             't_covered_true': defaultdict(None),  # samples with same pred as instance where t_ applies
             't_covered_false': defaultdict(None),  # samples with dif pred to instance where t_ applies
-            't_idx': defaultdict(set),  # row idx in sample cache where the anchors apply
             't_nsamples': defaultdict(lambda: 0.),  # total number of samples drawn for the anchors
             't_accepted': defaultdict(lambda: 0.),  # total number of samples drawn for the accepted traces of dfa
             't_order': defaultdict(list),  # anchors are sorted to avoid exploring permutations
@@ -257,6 +255,11 @@ class AnchorBaseBeam:
         J = sorted_means[-top_n:]
         not_J = sorted_means[:-top_n]
 
+        # if all candidates are in J, return the candidate with the lowest accuracy as lt and ut (b/c of beam search width)
+        if len(not_J) == 0:
+            lt = J[np.argmin(lb[J])] if len(J) > 0 else 0
+            return crit_arms._make((lt, lt))
+
         # update upper bound for lowest accuracy result candidates
         ub[not_J] = self.dup_bernoulli(means[not_J], beta / n_samples[not_J])
         # update lower bound for highest accuracy result candidates
@@ -338,9 +341,9 @@ class AnchorBaseBeam:
         # verbose_count = 0
 
         # Optimized parameters for faster convergence
-        MAX_ROUNDS = 300
-        # no_improvement_count = 0
-        # prev_B = B
+        MAX_ROUNDS = 500
+        no_improvement_count = 0
+        prev_B = B
         
         while B > epsilon and t < MAX_ROUNDS:
             # if verbose_count % verbose_every == 0:
@@ -372,27 +375,26 @@ class AnchorBaseBeam:
             )
             crit_a_idx = self.select_critical_arms(means, ub, lb, n_samples, delta, top_n, t)
             B_new = ub[crit_a_idx.ut] - lb[crit_a_idx.lt]
-            
-            # Early stopping: check for convergence stalling (no significant improvement)
-            # Use relative improvement: if B decreased by less than 1% of previous B, count as no improvement
-            # improvement = prev_B - B_new
-            # # More robust: use relative improvement if B > epsilon, else use absolute threshold
-            # if prev_B > epsilon:
-            #     relative_improvement = improvement / prev_B if prev_B > 0 else 0
-            #     no_sig_improvement = relative_improvement < 0.01  # Less than 1% relative improvement
-            # else:
-            #     no_sig_improvement = improvement < epsilon * 0.05  # Within 5% of epsilon
-            
-            # if no_sig_improvement:
-            #     no_improvement_count += 1
-            #     if no_improvement_count >= 3:  # Stop after 3 rounds of no improvement
-            #         if verbose:
-            #             print(f"  [KLLUCB] Early stopping at round {t}: B not converging (B={B_new:.6f}, ε={epsilon:.6f}, improvement={improvement:.6f})")
-            #         break
-            # else:
-            #     no_improvement_count = 0
-            
-            # prev_B = B_new
+
+            # Early stopping for stalled convergence: avoid long tails with tiny improvements.
+            improvement = prev_B - B_new
+            if prev_B > 0:
+                relative_improvement = improvement / prev_B
+            else:
+                relative_improvement = 0.0
+            no_sig_improvement = relative_improvement < 0.01
+
+            if no_sig_improvement:
+                no_improvement_count += 1
+                # Conservative guard: only early-stop when already near target precision.
+                if no_improvement_count >= 10 and B_new <= 2 * epsilon:
+                    if verbose:
+                        print(f"  [KLLUCB] Early stop at round {t}: stalled near convergence (B={B_new:.6f}, eps={epsilon:.6f})")
+                    break
+            else:
+                no_improvement_count = 0
+
+            prev_B = B_new
             B = B_new
             t += 1
 
@@ -465,8 +467,6 @@ class AnchorBaseBeam:
         accepts = np.array([AUTO_INSTANCE.check_path_accepted(dfa, p) for p in samples])
         true_accept = np.sum((labels == 1) & (accepts == True))
         false_reject = np.sum((labels == 0) & (accepts == False))        
-        idxs = range(current_idx, current_idx + n_samples)
-        self.state['t_idx'][id(dfa)].update(idxs)
         self.state['t_nsamples'][id(dfa)] += n_samples
         self.state['t_accepted'][id(dfa)] += np.sum(accepts)
         self.state['t_positives'][id(dfa)] += true_accept
@@ -516,7 +516,8 @@ class AnchorBaseBeam:
 
         return stats
     
-    def get_automata_metadata(self, automata, success, batch_size: int = 100) -> dict:
+
+    def get_automata_metadata(self, automata, success, batch_size: int = 100, is_final: bool = False) -> dict:
         """
         取得 DFA 的精確度、覆蓋率與範例資訊
         
@@ -530,6 +531,9 @@ class AnchorBaseBeam:
             Whether the search was successful
         batch_size : int
             For draw_samples operation
+        is_final : bool
+            If False (default), validation_accuracy is set to 0.0 (disabled for speed during search iterations).
+            If True, validation_accuracy is computed (for final reporting only).
         """
         state = self.state
         automata_id = id(automata)
@@ -564,29 +568,36 @@ class AnchorBaseBeam:
 
         # Compute validation accuracy
         final_validation_acc = 0.0
-        if self.predictor is not None and len(self.validation_data) > 0:
-            accepts = np.array([AUTO_INSTANCE.check_path_accepted(automata, p) for p in self.validation_data])
-            labels = self.predictor(self.validation_data)
-            
-            # Get instance label - handle both Tabular and Text types
-            instance_label = 1  # default
-            if hasattr(self.sample_fcn, 'tab_sampler') and hasattr(self.sample_fcn.tab_sampler, 'instance_label'):
-                instance_label = self.sample_fcn.tab_sampler.instance_label
-            
-            true_accept = np.sum((labels == instance_label) & (accepts == True))
-            false_reject = np.sum((labels != instance_label) & (accepts == False)) 
-            total_test = len(labels)
-            denom_test = true_accept + false_reject
-            final_validation_acc = (denom_test / total_test) if total_test > 0 else 0.0
+
+        if is_final and len(self.validation_data) > 0 and len(self.validation_labels) > 0:
+            accepts = np.asarray(
+                [AUTO_INSTANCE.check_path_accepted(automata, p) for p in self.validation_data],
+                dtype=bool
+            )
+
+            # validation_labels should already mean:
+            # 1 if teacher/RNN prediction equals original instance prediction
+            # 0 otherwise
+            labels = np.asarray(self.validation_labels, dtype=int)
+
+            correct = np.sum((labels == 1) & accepts) + np.sum((labels == 0) & ~accepts)
+            final_validation_acc = correct / len(labels)
+
             automata_metadata['validation_accuracy'] = final_validation_acc
 
-            false_accept = [p for p, lab, acc in zip(self.validation_data, labels, accepts) if (lab != instance_label) and acc]
-            true_reject = [p for p, lab, acc in zip(self.validation_data, labels, accepts) if (lab == instance_label) and acc]  
+            false_accept = [
+                p for p, lab, acc in zip(self.validation_data, labels, accepts)
+                if lab == 0 and acc
+            ]
+            false_reject = [
+                p for p, lab, acc in zip(self.validation_data, labels, accepts)
+                if lab == 1 and not acc
+            ]
+
             automata_metadata['false_accept'] = tuple(false_accept)
-            automata_metadata['true_reject'] = tuple(true_reject)
+            automata_metadata['true_reject'] = tuple(false_reject)
         else:
-            # If no predictor or validation data, set validation accuracy to training accuracy
-            automata_metadata['validation_accuracy'] = final_validation_acc
+            automata_metadata['validation_accuracy'] = 0.0
             automata_metadata['false_accept'] = tuple()
             automata_metadata['true_reject'] = tuple()
 
@@ -627,14 +638,12 @@ class AnchorBaseBeam:
         return ((means >= desired_confidence) & (lbs < desired_confidence - epsilon_stop)) | \
                ((means < desired_confidence) & (ubs >= desired_confidence + epsilon_stop))
 
-    def anchor_beam(self, type:str, alphabet: List = [], automaton_type: str = "DFA", delta: float = 0.05, epsilon: float = 0.1, accuracy_threshold: float = 1., state_threshold: int = 5,
-                    select_by: str = "accuracy",
-                    beam_size: int = 1, epsilon_stop: float = 0.05, min_samples_start: int = 100,
-                    min_anchor_size: Optional[int] = None, stop_on_first: bool = False, batch_size: int = 100,
-                    coverage_samples: int = 10000, verbose: bool = False, verbose_every: int = 1,
-                    preinitialized: bool = False,
+    def anchor_beam(self, type:str, alphabet: List = [], automaton_type: str = "DFA", delta: float = 0.05, epsilon: float = 0.1, accuracy_threshold: float = 1.,
+                    beam_size: int = 1, epsilon_stop: float = 0.05,
+                    batch_size: int = 100, verbose: bool = False, verbose_every: int = 1,
                     output_dir: str = "test_result/explain",
                     init_num_samples: int = 1000,
+                    max_evaluations: Optional[int] = None,
                     prebuilt_init=None,
                     use_kllucb: bool = True,
                     **kwargs) -> dict:
@@ -683,7 +692,7 @@ class AnchorBaseBeam:
         self.type = type
         init_automaton_time = 0.0
 
-        # ====== Automaton Factory ======
+        # Initialise automaton learner instance (DFA or RA)
         def automaton_factory(automaton_type: str):
             if automaton_type.upper() == "DFA":
                 from learner.dfa_learner import DFALearner
@@ -708,96 +717,120 @@ class AnchorBaseBeam:
 
         global AUTO_INSTANCE
 
+        # If prebuilt_init is provided, reuse cached initialisation
         if prebuilt_init is not None:
-            # ---- Use pre-built shared initialisation (same DFA for all methods) ----
             AUTO_INSTANCE = prebuilt_init.learner
-
-            # sample_fcn is still needed for draw_samples during beam search
             if hasattr(AUTO_INSTANCE, 'get_sampler'):
                 sampler_cls = AUTO_INSTANCE.get_sampler()
                 accuracy_sampler = next(s for s in self.samplers if isinstance(s, sampler_cls))
             else:
                 accuracy_sampler = self.samplers[0]
-
             self.samplers = [accuracy_sampler]
             self.sample_fcn = accuracy_sampler
             self.iteration = 0
             self._init_state(batch_size)
 
-            # Use the shared initial DFA and validation data for selection.
-            # Training data is ALWAYS resampled independently to ensure fair comparison
-            # (e.g., NO-KL-LUCB gets a fresh initial_training_accuracy computation).
+            # Directly reuse cached initial DFA
             origin_automata = prebuilt_init.initial_dfa.copy()
             self.automatas = [origin_automata]
-            
-            # Store validation data for use during beam search (DFA selection)
-            validation_data = getattr(prebuilt_init, 'validation_data', None)
-            validation_labels = getattr(prebuilt_init, 'validation_labels', None)
-            if validation_data is not None:
-                self.validation_data = list(validation_data)
-                self.validation_labels = np.asarray(validation_labels, dtype=np.float64) if validation_labels is not None else None
-            
-            # IMPORTANT: Do NOT seed training data from prebuilt_init.
-            # Keep state as initialized so draw_samples will always resample fresh training data.
-            print(f"[anchor_beam] prebuilt_init: {len(origin_automata.states)} states, "
-                  f"{len(validation_data) if validation_data else 0} validation samples; "
-                  f"will resample training data independently.")
-        else:
-            # ---- Original initialisation: draw samples + RPNI ----
-            AUTO_INSTANCE = automaton_factory(automaton_type)
 
+            # Directly reuse cached validation data/labels
+            self.validation_data = list(getattr(prebuilt_init, 'validation_data', []))
+            self.validation_labels = np.asarray(
+                getattr(prebuilt_init, 'validation_labels', []),
+                dtype=np.float64
+            )
+
+            print(
+                f"[anchor_beam] prebuilt_init: using cached initial DFA directly "
+                f"({len(origin_automata.states) if hasattr(origin_automata, 'states') else origin_automata.size} states), "
+                f"cached validation samples={len(self.validation_data)}"
+            )
+
+        else:
+            # No cache: initialize from scratch
+            AUTO_INSTANCE = automaton_factory(automaton_type)
             if hasattr(AUTO_INSTANCE, 'get_sampler'):
                 sampler_cls = AUTO_INSTANCE.get_sampler()
                 accuracy_sampler = next(s for s in self.samplers if isinstance(s, sampler_cls))
             else:
                 accuracy_sampler = self.samplers[0]
-
             self.samplers = [accuracy_sampler]
             self.sample_fcn = accuracy_sampler
             self.iteration = 0
             self._init_state(batch_size)
-
-            # Generate initial automaton with state count
             init_start = time.perf_counter()
+            # Create initial automaton with a number of samples that is likely to yield an automaton of reasonable size (not too small to be trivial, not too large to be intractable).
             min_states_threshold, max_states_threshold = 30, 45
             attempt = 0
             max_attempts = 20
             origin_automata = None
             inti_samples = None
             inti_label = None
-            
+
+            candidate_list = []
             while attempt < max_attempts and origin_automata is None:
                 attempt += 1
-                # Sample data for RPNI
-                inti_samples, inti_label = accuracy_sampler(num_samples=init_num_samples, compute_labels=True)
-                
-                # Create initial automaton using positive and negative samples
+                inti_samples, inti_label = accuracy_sampler(
+                    num_samples=init_num_samples,
+                    compute_labels=True
+                )
+
                 positive_samples = [x for x, y in zip(inti_samples, inti_label) if y == 1]
                 negative_samples = [x for x, y in zip(inti_samples, inti_label) if y == 0]
-                
-                candidate_automata = AUTO_INSTANCE.create_init_automata(type, positive_samples, negative_samples)
+
+                candidate_automata = AUTO_INSTANCE.create_init_automata(
+                    type, positive_samples, negative_samples
+                )
                 candidate_states = len(candidate_automata.states) if hasattr(candidate_automata, 'states') else 0
-                
-                # Check if state count is in acceptable range
+                candidate_list.append((candidate_states, candidate_automata))
+
                 if min_states_threshold <= candidate_states <= max_states_threshold:
                     origin_automata = candidate_automata
                     print(f"[Init DFA] Attempt {attempt}: {candidate_states} states")
                 else:
                     print(f"[Init DFA] Attempt {attempt}: {candidate_states} states, resampling...")
-            
+
             if origin_automata is None:
-                print(f"[Init DFA] Failed to generate valid initial DFA after {max_attempts} attempts. Using last candidate.")
-                origin_automata = candidate_automata
+                return {
+                    'automata': [None, None],
+                    'states': [None, None],
+                    'training_accuracies': [0.0, 0.0],
+                    'validation_accuracies': [0.0, 0.0],
+                    'success': False,
+                    'reason': f'Initial DFA state count not in target range [{min_states_threshold}, {max_states_threshold}]',
+                    'budget_used': 0,
+                    'validation_data': [],
+                    'validation_labels': np.array([], dtype=np.float64),
+                    'num_preds': 0,
+                    'false_accept': [],
+                    'true_reject': [],
+                    'init_automaton_time': 0.0,
+                }
+
+            for _, a in candidate_list:
+                if a is not origin_automata:
+                    del a
+            import gc
+            gc.collect()
+
+            self.automatas = [origin_automata]
+
+            # Validation = the same samples used to build the initial DFA
+            self.validation_data = list(inti_samples) if inti_samples is not None else []
+            self.validation_labels = np.asarray(
+                inti_label if inti_label is not None else [], dtype=np.float64
+            )
+
+            # Complete automaton transitions.
+            origin_automata.make_input_complete('sink_state')
             
+            # Total time for initial automaton generation
             init_end = time.perf_counter()
-            init_automaton_time = init_end - init_start  # Total time across all retries
-            
-            self.automatas   = [origin_automata]
-            self.validation_data = inti_samples
-            self.validation_labels = inti_label
+            init_automaton_time = init_end - init_start  
         
         # sample by default 1 or min_samples_start more random value(s)
-        (true_accept,), (false_reject,), (total,), (accepted,) = self.draw_samples([self.automatas[0]], min_samples_start)
+        (true_accept,), (false_reject,), (total,), (accepted,) = self.draw_samples([self.automatas[0]], batch_size)
 
         # mean = fraction of labels sampled data that equals the label of the instance to be explained, ...
         # ... equivalent to prec(A) in paper (eq.2)
@@ -820,7 +853,7 @@ class AnchorBaseBeam:
         else:
             lb = mean
 
-        # Robustly get automaton size: use .size if present, else len(states), else fallback
+        # Get automaton size
         automaton = self.automatas[0]
         if hasattr(automaton, 'size'):
             size = automaton.size
@@ -831,7 +864,7 @@ class AnchorBaseBeam:
 
         # if prec_lb(A) > tau for A=() then the empty result satisfies the constraints ...
         min_states = 2
-        if lb > accuracy_threshold and size <= state_threshold and size >= min_states:
+        if lb > accuracy_threshold and size >= min_states:
             result = {
                 'automata': [self.automatas[0], self.automatas[0]],  # [initial, final] (same)
                 'states': [size, size],  # [initial, final] (same)
@@ -853,32 +886,55 @@ class AnchorBaseBeam:
         all_history = [] # full history of all candidates evaluated (for analysis)
         iteration_stats = [] # stats for each iteration (for analysis)
         total_candidates_proposed = 0  # counter for total number of candidate automata proposed during the search
-    
+
         # find best result using beam search
         while True:
+            if max_evaluations is not None and total_candidates_proposed >= max_evaluations:
+                print(f"[Beam] Budget exhausted: {total_candidates_proposed} >= {max_evaluations}")
+                break
+
             print("======================================")
             print("Beam Search Iteration:", self.iteration)
 
             # create new candidate anchors by adding features to current best anchors
             automatas = AUTO_INSTANCE.propose_automata(self.automatas, self.state, self.iteration, best_of_size.get(self.iteration, []), output_dir, beam_size, batch_size)
+
+            if automatas is None:
+                print("[Beam] No candidates proposed. Stopping.")
+                break
+            
+            if max_evaluations is not None:
+                remaining_budget = max_evaluations - total_candidates_proposed
+                if remaining_budget <= 0:
+                    print(f"[Beam] Budget exhausted before evaluating new candidates: {total_candidates_proposed} >= {max_evaluations}")
+                    break
+                if len(automatas) > remaining_budget:
+                    # Avoid positional bias from propose_automata ordering under budget pressure.
+                    original_pool_size = len(automatas)
+                    sampled_idx = np.random.choice(original_pool_size, size=remaining_budget, replace=False)
+                    sampled_idx.sort()
+                    automatas = [automatas[int(i)] for i in sampled_idx]
+
             total_candidates_proposed += len(automatas)
 
-            # Early stopping: if no better coverage found with added features, stop
+            if max_evaluations is not None:
+                print(f"[Beam] Evaluations: {total_candidates_proposed}/{max_evaluations}")
+
             if len(automatas) == 0:
-                print("No candidates survived. Stopping.")
+                print("[Beam] No candidates left after budget truncation. Stopping.")
                 break
             
             # Early stopping: if the size of each candidates is 2, stop
-            if all(automaton.size == 2 for automaton in automatas):
+            if all(automaton.size < 2 for automaton in automatas):
                 break
 
             # for each result, get initial nb of samples used and acc(A)
             stats = self.get_init_stats(automatas)
 
-            # Choose candidates: either use KL-LUCB or simple top-k by training accuracy
+            # KL-LUCB performs directed sampling on uncertain candidates
             if use_kllucb:
-                # apply KL-LUCB and return result options (nb of options = beam width) in the form of indices
-                candidate_automatas = self.kllucb_automata(
+                # KL-LUCB samples to reduce uncertainty, updates stats in-place
+                _ = self.kllucb_automata(
                     automatas,
                     stats,
                     epsilon,
@@ -889,24 +945,58 @@ class AnchorBaseBeam:
                     verbose_every=verbose_every,
                 )
             else:
-                # Simple greedy: select top-k by training accuracy (no statistical testing)
-                positives = np.array(stats['positives'])
-                negatives = np.array(stats['negatives'])
-                n_samples = np.array(stats['n_samples'])
-                denom = positives + negatives
-                means = np.divide(
-                    denom,
-                    n_samples,
-                    out=np.zeros_like(n_samples),
-                    where=n_samples != 0
+                unsampled_idx = np.where(stats['n_samples'] == 0)[0]
+                if len(unsampled_idx) > 0:
+                    unsampled_automatas = [automatas[int(i)] for i in unsampled_idx]
+                    true_accept, false_reject, total, accepted = self.draw_samples(unsampled_automatas, batch_size)
+                    stats['positives'][unsampled_idx] += np.asarray(true_accept, dtype=float)
+                    stats['negatives'][unsampled_idx] += np.asarray(false_reject, dtype=float)
+                    stats['n_samples'][unsampled_idx] += np.asarray(total, dtype=float)
+                    stats['n_accepted'][unsampled_idx] += np.asarray(accepted, dtype=float)
+
+           # Rank all candidates by accuracy (after KL-LUCB / fixed-batch sampling)
+            positives = np.array(stats['positives'])
+            negatives = np.array(stats['negatives'])
+            n_samples = np.array(stats['n_samples'])
+            denom = positives + negatives
+            means = np.divide(
+                denom,
+                n_samples,
+                out=np.zeros_like(n_samples),
+                where=n_samples != 0
+            )
+
+            # Select indices of top beam_size candidates by training accuracy.
+            # For DFA, exclude degenerate candidates (no accepting state or <2 states)
+            # before carrying beam to next iteration.
+            sorted_indices = np.argsort(means)[::-1]  # descending order
+            if automaton_type == "DFA":
+                valid_indices = []
+                for idx in sorted_indices.tolist():
+                    cand = automatas[idx]
+                    cand_states = len(cand.states)
+                    has_accepting = any(s.is_accepting for s in cand.states)
+                    if cand_states >= 2 and has_accepting:
+                        valid_indices.append(idx)
+                candidate_automatas = np.asarray(
+                    valid_indices[:min(beam_size, len(valid_indices))],
+                    dtype=int,
                 )
-                # Select indices of top beam_size candidates by training accuracy
-                sorted_indices = np.argsort(means)[::-1]  # descending order
-                candidate_automatas = sorted_indices[:min(beam_size, len(automatas))]
+            else:
+                candidate_automatas = np.asarray(
+                    sorted_indices[:min(beam_size, len(automatas))],
+                    dtype=int,
+                )
+
+            if len(candidate_automatas) == 0:
+                print("[Beam] No valid candidates after DFA filtering. Stopping.")
+                break
                 
             # store best automatas for the given result size (nb of features in the result)
             best_of_size[self.iteration+1] = [automatas[index] for index in candidate_automatas]
             beam = best_of_size[self.iteration+1]
+            
+            print(f"[Beam] Selected {len(beam)} DFAs for next iteration")
             
             # for each candidate result: get initial stats and means
             stats = self.get_init_stats(best_of_size[self.iteration+1], coverages=True)
@@ -935,7 +1025,8 @@ class AnchorBaseBeam:
                 continue_sampling = self.to_sample(means, ubs, lbs, accuracy_threshold, epsilon_stop)
             
                 while continue_sampling.any():
-                    selected_automatas = [automatas[idx] for idx in candidate_automatas[continue_sampling]]
+                    selected_indices = np.asarray(candidate_automatas, dtype=int)[continue_sampling].tolist()
+                    selected_automatas = [automatas[idx] for idx in selected_indices]
                     true_accept, false_reject, total, accepted = self.draw_samples(selected_automatas, batch_size)
                     positives[continue_sampling] += true_accept
                     negatives[continue_sampling] += false_reject
@@ -961,8 +1052,8 @@ class AnchorBaseBeam:
                     continue_sampling = self.to_sample(means, ubs, lbs, accuracy_threshold, epsilon_stop)
             else:
                 # Without KL-LUCB: just use current means, no bounds, no further sampling
-                lbs = means  # Use means as lower bounds (no statistical testing)
-                ubs = means  # Use means as upper bounds too (no bounds estimation)
+                lbs = np.zeros_like(means, dtype=float)
+                ubs = np.ones_like(means, dtype=float)
             
             # Collect full history
             for automata, m, lb in zip(beam, means, lbs):
@@ -981,12 +1072,12 @@ class AnchorBaseBeam:
 
                 record = {
                     "automata": automata,
+                    "training_accuracy": float(m),
                     "accuracy": float(m),
                     "lb": float(lb),
                     "states": states,
                 }
                 all_history.append(record)
-                print(f"  [HISTORY] Added: states={states}, accuracy={m:.4f}, id={id(automata)}")
 
             if verbose:
                 for i, mean, lb, ub in zip(candidate_automatas, means, lbs, ubs):
@@ -1004,10 +1095,9 @@ class AnchorBaseBeam:
             }
             iteration_stats.append(round_stats)
             print(f"[Iteration {self.iteration}] Training accuracies: {[str(acc) for acc in round_stats['training_accuracies']]}, States: {round_stats['states']}")
-            
             self.iteration += 1
 
-        # plot beam search statistics        
+        # Save DFA graphs and iteration stats plots for analysis       
         if iteration_stats:
             print("Initial training accuracy : ",iteration_stats[0]["training_accuracies"])
             print("Initial validation accuracy : ",iteration_stats[0]["validation_accuracies"])
@@ -1019,9 +1109,9 @@ class AnchorBaseBeam:
 
             plot_dfa_beam_stats(iteration_stats, beam_size, output_dir=output_dir)
 
-        # according to the select_by strategy, pick the best candidate from all_history and do final cleanup before returning metadata
+        # Pick the best candidate from all_history
         def _cleanup_and_return(best_record, success, label="", reason=""):
-            initial_metadata = self.get_automata_metadata(origin_automata, success=True, batch_size=batch_size)
+            initial_metadata = self.get_automata_metadata(origin_automata, success=True, batch_size=batch_size, is_final=True)
             initial_state_count = len(origin_automata.states) if hasattr(origin_automata, 'states') else (origin_automata.size if hasattr(origin_automata, 'size') else None)
             
             automata = best_record["automata"]
@@ -1044,7 +1134,7 @@ class AnchorBaseBeam:
                 print(f"  States after cleanup: {n_states_after}, has accepting state: {has_accept}")
                 AUTO_INSTANCE.automaton_to_graphviz(automata, filename="final_automata", instance=self.sample_fcn.instance, output_dir=output_dir)
             
-            final_metadata = self.get_automata_metadata(automata, success=success, batch_size=batch_size)
+            final_metadata = self.get_automata_metadata(automata, success=success, batch_size=batch_size, is_final=True)
             
             result = {
                 'automata': [origin_automata, automata],  # [initial, final]
@@ -1063,41 +1153,27 @@ class AnchorBaseBeam:
             }
             return result
 
-        print(f"\n[SELECT] select_by='{select_by}', accuracy_threshold={accuracy_threshold}, state_threshold={state_threshold}")
+        print(f"\naccuracy_threshold={accuracy_threshold}")
         print(f"  Total candidates in history: {len(all_history)}")
 
-        if all_history:
-            if select_by == "accuracy":
-                # mode 1: prioritize accuracy_threshold - find candidates meeting accuracy threshold, then pick smallest state count
-                qualified = [r for r in all_history if r["accuracy"] >= accuracy_threshold]
-                if qualified:
-                    best = min(qualified, key=lambda x: x["states"])
-                    print(f"  [accuracy mode] {len(qualified)} candidates meet accuracy >= {accuracy_threshold}.")
-                    print(f"  Selected: states={best['states']}, accuracy={best['accuracy']:.4f}")
-                    return _cleanup_and_return(best, success=True, label="qualified(accuracy)", reason="Found candidate meeting accuracy threshold")
-                else:
-                    # if no candidates meet accuracy threshold, pick candidate with highest accuracy regardless of state count
-                    best = max(all_history, key=lambda x: x["accuracy"])
-                    print(f"  [accuracy mode] No candidate meets accuracy >= {accuracy_threshold}.")
-                    print(f"  Best-effort: states={best['states']}, accuracy={best['accuracy']:.4f}")
-                    return _cleanup_and_return(best, success=False, label="best-effort(accuracy)", reason=f"No candidate meets accuracy >= {accuracy_threshold}. Returning best-effort with highest accuracy.")
+        def _train_acc(rec):
+            return float(rec.get("training_accuracy", rec.get("accuracy", 0.0)))
 
-            elif select_by == "state":
-                # mode 2: prioritize state_threshold - find candidates meeting state count threshold, then pick highest accuracy
-                under_state = [r for r in all_history if r["states"] <= state_threshold]
-                if under_state:
-                    best = max(under_state, key=lambda x: x["accuracy"])
-                    print(f"  [state mode] {len(under_state)} candidates have states <= {state_threshold}.")
-                    print(f"  Selected: states={best['states']}, accuracy={best['accuracy']:.4f}")
-                    return _cleanup_and_return(best, success=True, label="qualified(state)", reason="Found candidate meeting state threshold")
-                else:
-                    # if no candidates meet state count threshold, fallback to best-effort: pick candidate with highest accuracy regardless of state count
-                    best = max(all_history, key=lambda x: x["accuracy"])
-                    print(f"  [state mode] No candidate has states <= {state_threshold}.")
-                    print(f"  Best-effort: states={best['states']}, accuracy={best['accuracy']:.4f}")
-                    return _cleanup_and_return(best, success=False, label="best-effort(state)", reason=f"No candidate has states <= {state_threshold}. Returning best-effort with highest accuracy.")
+        if all_history:
+            # prioritize accuracy_threshold - find candidates meeting accuracy threshold, then pick smallest state count
+            qualified = [r for r in all_history if _train_acc(r) >= accuracy_threshold]
+            if qualified:
+                best = min(qualified, key=lambda x: x["states"])
+                print(f"  [accuracy mode] {len(qualified)} candidates meet accuracy >= {accuracy_threshold}.")
+                print(f"  Selected: states={best['states']}, training_accuracy={_train_acc(best):.4f}")
+                return _cleanup_and_return(best, success=True, label="qualified(accuracy)", reason="Found candidate meeting accuracy threshold")
             else:
-                raise ValueError(f"Unknown select_by='{select_by}'. Use 'accuracy' or 'state'.")
+                # if no candidates meet accuracy threshold, pick candidate with highest training accuracy regardless of state count
+                best = max(all_history, key=_train_acc)
+                print(f"  [accuracy mode] No candidate meets accuracy >= {accuracy_threshold}.")
+                print(f"  Best-effort: states={best['states']}, training_accuracy={_train_acc(best):.4f}")
+                return _cleanup_and_return(best, success=False, label="best-effort(accuracy)", reason=f"No candidate meets accuracy >= {accuracy_threshold}. Returning best-effort with highest training accuracy.")
+
 
         # Safety fallback: if there are no candidates at all (should not happen since we start with initial automaton), return initial automaton metadata
         print("\n[SELECT] No candidates generated during beam search. Returning initial automaton.")
@@ -1110,7 +1186,7 @@ class AnchorBaseBeam:
         
         plot_beam_stats(iteration_stats, beam_size, output_dir=output_dir, show=False)
         
-        initial_metadata = self.get_automata_metadata(origin_automata, success=False, batch_size=batch_size)
+        initial_metadata = self.get_automata_metadata(origin_automata, success=False, batch_size=batch_size, is_final=True)
         initial_state_count = len(origin_automata.states) if hasattr(origin_automata, 'states') else (origin_automata.size if hasattr(origin_automata, 'size') else None)
         
         result = {

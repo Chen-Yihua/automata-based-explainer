@@ -152,7 +152,6 @@ class TabularSampler:
         X
             Instance to be explained.
         """
-        print("[DEBUG][set_instance_label] type(X):", type(X), "shape:", getattr(X, 'shape', None), "X:", X)
         # Support both numpy array and list input for variable/fixed length data
         # variable length data (object dtype or list of lists)
         if hasattr(self.d_train_data, 'dtype') and self.d_train_data.dtype == object:
@@ -174,8 +173,6 @@ class TabularSampler:
                 label: int = self.predictor(X.reshape(1, -1))[0]
             else:
                 label: int = self.predictor(np.array([X]))[0]
-        print("[DEBUG][set_instance_label] label:", label)
-        # 存下 instance X 供 compare_labels debug
         self._last_instance_X = X
         self.instance_label = label
 
@@ -213,8 +210,11 @@ class TabularSampler:
             for i, seq in enumerate(self.d_train_data):
                 for f_id in range(len(seq)):
                     val = seq[f_id]
-                    # 修正: 若 val 是 numpy array，轉成 tuple 才能當 key
+                    # 若 val 是 numpy array，轉成 tuple 才能當 key
                     key = tuple(val) if isinstance(val, np.ndarray) else val
+                    # For variable-length sequences, dynamically create f_id entries as needed
+                    if f_id not in val2idx:
+                        val2idx[f_id] = defaultdict(list)
                     val2idx[f_id][key].append(i)
 
             for f_id in val2idx:
@@ -319,8 +319,6 @@ class TabularSampler:
         -------
         An array of integers indicating whether the prediction was the same as the instance label.
         """
-        # print("[DEBUG] predictiom of ['a', 'a']:", self.predictor([['a', 'a']]))
-        # print("[DEBUG] predictiom of ['a', 'a', 'a']:", self.predictor([['a', 'a', 'a']]))
         preds = self.predictor(samples)
         return preds == self.instance_label
 
@@ -738,6 +736,7 @@ class AnchorTabular(Explainer, FitMixin):
         self.numerical_features = [x for x in range(len(feature_names)) if x not in self.categorical_features]
 
         self.samplers: list = []
+        # self.task_type = None
         self.ohe = ohe
         self.seed = seed
 
@@ -746,23 +745,61 @@ class AnchorTabular(Explainer, FitMixin):
 
         self._fitted = False
 
-
     def fit(self,
             automaton_type: str,
-            train_data: np.ndarray,
+            train_data: Optional[np.ndarray] = None,
             disc_perc: Optional[Tuple[Union[int, float], ...]] = (25, 50, 75),
             alphabet: List = [],
-            **kwargs) -> "AnchorTabular":
+            **kwargs,
+        ) -> "AnchorTabular":
         """
-        Fit discretizer to train data to bin numerical features into ordered bins and compute statistics for
-        numerical features. Create a mapping between the bin numbers of each discretised numerical feature and the
-        row id in the training set where it occurs.
+        Fit explainer.
+
+        For DFA sequence tasks, we directly use DFASampler.
+        This avoids requiring a TabularSampler and a pre-generated train_data pool.
         """
+        data_type = kwargs.pop("data_type", "automata")
+        initial_dfa = kwargs.pop("initial_dfa", None)
+
+        self.initial_dfa = initial_dfa
+
+        # ==========================================================
+        # DFA sequence mode: no TabularSampler, no train_data needed.
+        # Samples are generated later by DFASampler.perturbation()
+        # after set_instance_label(X).
+        # ==========================================================
+        if automaton_type.upper() == "DFA":
+            sampler = DFASampler(
+                predictor=self._predictor,
+                base_sampler=None,
+                alphabet=alphabet,
+                seed=self.seed,
+                data_type=data_type,
+                initial_dfa=initial_dfa,
+            )
+
+            self.samplers = [sampler]
+            self._cov_train_data = train_data
+            self._cov_d_train_data = train_data
+            self.meta["params"].update(disc_perc=disc_perc)
+            self._fitted = True
+            return self
+
+        # ==========================================================
+        # RA / original tabular mode: keep original TabularSampler path.
+        # ==========================================================
+        if train_data is None:
+            raise ValueError("train_data is required for non-DFA automaton_type.")
+
         train_data = ohe_to_ord(X_ohe=train_data, cat_vars_ohe=self.cat_vars_ohe)[0] if self.ohe else train_data
 
-        # 決定是否分 bin
         if disc_perc is not None and self.numerical_features:
-            disc = Discretizer(train_data, self.numerical_features, self.feature_names, percentiles=disc_perc)
+            disc = Discretizer(
+                train_data,
+                self.numerical_features,
+                self.feature_names,
+                percentiles=disc_perc,
+            )
             d_train_data = disc.discretize(train_data)
             self.feature_values.update(disc.feature_intervals)
         else:
@@ -779,29 +816,94 @@ class AnchorTabular(Explainer, FitMixin):
             seed=self.seed,
         ).deferred_init(train_data, d_train_data)
 
-        if automaton_type.upper() == 'DFA':
-            sampler = DFASampler(
-                predictor=self._predictor,
-                base_sampler=copy.deepcopy(tab_sampler),
-                alphabet=alphabet,
-                seed=self.seed
-            )
-        elif automaton_type.upper() == 'RA':
+        if automaton_type.upper() == "RA":
             sampler = RASampler(
                 predictor=self._predictor,
                 alphabet=alphabet,
                 base_sampler=copy.deepcopy(tab_sampler),
-                seed=self.seed
+                seed=self.seed,
             )
         else:
             raise ValueError("Unknown automaton_type")
-        self.samplers = [sampler]
 
+        self.samplers = [sampler]
         self._cov_train_data = train_data
         self._cov_d_train_data = d_train_data
-        self.meta['params'].update(disc_perc=disc_perc)
+        self.meta["params"].update(disc_perc=disc_perc)
         self._fitted = True
         return self
+    # def fit(self,
+    #         automaton_type: str,
+    #         train_data: np.ndarray,
+    #         disc_perc: Optional[Tuple[Union[int, float], ...]] = (25, 50, 75),
+    #         alphabet: List = [],
+    #         **kwargs) -> "AnchorTabular":
+    #     """
+    #     Fit discretizer to train data to bin numerical features into ordered bins and compute statistics for
+    #     numerical features. Create a mapping between the bin numbers of each discretised numerical feature and the
+    #     row id in the training set where it occurs.
+        
+    #     Parameters
+    #     ----------
+    #     data_type : str, optional
+    #         Type of data being learned: 'automata' or 'real_world' (default: 'automata').
+    #         Determines how the teacher predictor is applied:
+    #         - 'automata': DFA from DOT file (ground truth teacher)
+    #         - 'real_world': Trained RNN classifier with noisy labels
+    #     initial_dfa : Dfa, optional
+    #         Initial DFA for automata regular languages. When provided, labels are generated
+    #         from this DFA instead of using the predictor. (default: None)
+    #     """
+    #     # Extract optional parameters
+    #     data_type = kwargs.pop('data_type', 'automata')
+    #     initial_dfa = kwargs.pop('initial_dfa', None)
+    #     # persist initial_dfa on the explainer so it can be forwarded to AnchorBaseBeam
+    #     self.initial_dfa = initial_dfa
+        
+    #     train_data = ohe_to_ord(X_ohe=train_data, cat_vars_ohe=self.cat_vars_ohe)[0] if self.ohe else train_data
+    #     if disc_perc is not None and self.numerical_features:
+    #         disc = Discretizer(train_data, self.numerical_features, self.feature_names, percentiles=disc_perc)
+    #         d_train_data = disc.discretize(train_data)
+    #         self.feature_values.update(disc.feature_intervals)
+    #     else:
+    #         disc = None
+    #         d_train_data = train_data
+
+    #     tab_sampler = TabularSampler(
+    #         self._predictor,
+    #         disc_perc,
+    #         self.numerical_features,
+    #         self.categorical_features,
+    #         self.feature_names,
+    #         self.feature_values,
+    #         seed=self.seed,
+    #     ).deferred_init(train_data, d_train_data)
+
+    #     if automaton_type.upper() == 'DFA':
+    #         sampler = DFASampler(
+    #             predictor=self._predictor,
+    #             base_sampler=copy.deepcopy(tab_sampler),
+    #             alphabet=alphabet,
+    #             seed=self.seed,
+    #             data_type=data_type,
+    #             initial_dfa=initial_dfa
+    #         )
+    #     elif automaton_type.upper() == 'RA':
+    #         sampler = RASampler(
+    #             predictor=self._predictor,
+    #             alphabet=alphabet,
+    #             base_sampler=copy.deepcopy(tab_sampler),
+    #             seed=self.seed
+    #         )
+    #     else:
+    #         raise ValueError("Unknown automaton_type")
+    #     self.samplers = [sampler]
+
+    #     self._cov_train_data = train_data
+    #     self._cov_d_train_data = d_train_data
+    #     self.meta['params'].update(disc_perc=disc_perc)
+    #     self._fitted = True
+    #     return self
 
     def _build_sampling_lookups(self, X: np.ndarray) -> None:
         """
@@ -824,16 +926,10 @@ class AnchorTabular(Explainer, FitMixin):
                 X: np.ndarray,
                 edit_distance: int = 4,
                 accuracy_threshold: float = 0.95,
-                state_threshold: int = 5,
-                select_by: str = "accuracy",
                 delta: float = 0.1,
                 tau: float = 0.15,
                 batch_size: int = 300,
-                coverage_samples: int = 10000,
                 beam_size: int = 1,
-                stop_on_first: bool = False,
-                max_anchor_size: Optional[int] = None,
-                min_samples_start: int = 100,
                 n_covered_ex: int = 10,
                 binary_cache_size: int = 10000,
                 cache_margin: int = 1000,
@@ -842,7 +938,9 @@ class AnchorTabular(Explainer, FitMixin):
                 verbose_every: int = 1,
                 output_dir: str = "test_result/explain",
                 use_kllucb: bool = True,
+                max_evaluations: Optional[int] = None,
                 prebuilt_init = None,
+                task_type: Optional[str] = None,
                 **kwargs: Any) -> Explanation:
         """
         Explain prediction made by classifier on instance `X`.
@@ -938,6 +1036,7 @@ class AnchorTabular(Explainer, FitMixin):
             sampler.set_n_covered(n_covered_ex)
             sampler.edit_distance = edit_distance
         self.instance_label = self.samplers[0].instance_label
+        # self.task_type = task_type
 
         # build feature encoding and mappings from the instance values to database rows where
         # similar records are found get anchors and add metadata
@@ -948,6 +1047,7 @@ class AnchorTabular(Explainer, FitMixin):
             predictor=self._predictor,
             sample_cache_size=binary_cache_size,
             cache_margin=cache_margin,
+            initial_dfa=self.initial_dfa,
             **kwargs)
         result: Any = mab.anchor_beam(
             type=type,
@@ -956,19 +1056,15 @@ class AnchorTabular(Explainer, FitMixin):
             delta=delta, 
             epsilon=tau,
             accuracy_threshold=accuracy_threshold,
-            state_threshold=state_threshold,
-            select_by=select_by,
             beam_size=beam_size,
-            min_samples_start=min_samples_start,
-            max_anchor_size=max_anchor_size,
             batch_size=batch_size,
-            coverage_samples=coverage_samples,
             init_num_samples=init_num_samples,
             verbose=verbose,
             verbose_every=verbose_every,
             output_dir=output_dir,
-            use_kllucb=use_kllucb,
+            max_evaluations=max_evaluations,
             prebuilt_init=prebuilt_init,
+            use_kllucb=use_kllucb,
             **kwargs
         )
         self.mab = mab
