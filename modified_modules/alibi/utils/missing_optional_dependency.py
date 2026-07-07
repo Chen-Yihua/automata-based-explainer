@@ -38,6 +38,7 @@ ERROR_TYPES = {
     'shap': 'shap',
     'numba': 'shap',
     'distributed': 'distributed',
+    'transformers': 'transformers',
 }
 
 
