@@ -23,11 +23,9 @@ class RASampler:
         self.tab_sampler = base_sampler
         self.alphabet = alphabet
         self.edit_distance = edit_distance
-
         self.instance = None
         self.instance_label = None
         self.n_covered_ex = 10
-        self._built = True
 
         if seed is not None:
             random.seed(seed)
@@ -103,8 +101,8 @@ class RASampler:
 
             # variable-length
             if getattr(self.tab_sampler, "d_train_data", np.array([])).dtype == object:
-                covered_true = [seq for seq, lab in zip(raw_data, labels) if lab == self.instance_label][:self.n_covered_ex]
-                covered_false = [seq for seq, lab in zip(raw_data, labels) if lab != self.instance_label][:self.n_covered_ex]
+                covered_true = [seq for seq, lab in zip(raw_data, labels) if lab == 1][:self.n_covered_ex]
+                covered_false = [seq for seq, lab in zip(raw_data, labels) if lab == 0][:self.n_covered_ex]
                 covered_true = np.array(covered_true, dtype=object)
                 covered_false = np.array(covered_false, dtype=object)
             else:
@@ -133,53 +131,11 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         self.learner = None
         self.dra = None
     
-    # ========== Implement Abstract Methods ==========
+
     def get_sampler(self):
         from learner.ra_learner import RASampler
         return RASampler
-    
-    # def complete(self):
-    #     """
-    #     Add a sink state and missing transitions for determinism.
-    #     Returns a new DRA instance with sink state if needed.
-    #     """
-    #     import copy
-    #     dra = self.dra
-    #     new_states = set(dra.states)
-    #     sink_state = max(new_states) + 1
-    #     new_states.add(sink_state)
-    #     new_transitions = copy.deepcopy(dra.transitions)
-    #     new_register_transitions = copy.deepcopy(dra.register_transitions)
 
-    #     # 假設 dra.condition_map 有所有可能的 condition_id
-    #     all_conditions = set(dra.condition_map.keys())
-
-    #     for state in dra.states:
-    #         existing_conditions = set(cid for cid, _ in dra.transitions.get(state, []))
-    #         missing_conditions = all_conditions - existing_conditions
-    #         for cid in missing_conditions:
-    #             # 加入指向 sink 的 transition
-    #             new_transitions.setdefault(state, []).append((cid, sink_state))
-    #             # register assignment: identity (不變)
-    #             new_register_transitions.setdefault(state, []).append((0, sink_state))  # 0: identity assignment
-
-    #     # sink state 自己也要有所有條件的 self-loop
-    #     new_transitions[sink_state] = [(cid, sink_state) for cid in all_conditions]
-    #     new_register_transitions[sink_state] = [(0, sink_state) for _ in all_conditions]
-
-    #     new_final_states = set(dra.final_states)
-    #     return DRA(
-    #         states=new_states,
-    #         num_registers=dra.num_registers,
-    #         constants=dra.constants,
-    #         condition_map=dra.condition_map,
-    #         assignment_map=dra.assignment_map,
-    #         transitions=new_transitions,
-    #         register_transitions=new_register_transitions,
-    #         initial_state=dra.initial_state,
-    #         final_states=new_final_states,
-    #         theory=dra.theory
-    #     )
     
     def create_init_automata(self, data_type, positive_samples, negative_samples, golden_pos_samples=[]):
         """
@@ -217,6 +173,7 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         self.pairwise_det_map = getattr(self.learner, "pairwise_det_map", {})
         return self.dra
     
+
     def _build_passive_dra(self, positive_samples, negative_samples):
         """
         Build a generic initial DRA that serves as a good starting point for beam search.
@@ -233,10 +190,9 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         condition_map = self.learner.condition_map
         assignment_map = self.learner.assignment_map
         
-        # 分類所有條件
         all_conds = list(condition_map.keys())
         tt_cond_id = None
-        useful_conds = []  # 非 TT/FF 的有用條件
+        useful_conds = []
         
         if self.theory == "Integer":
             for cid, (operand, op) in condition_map.items():
@@ -367,27 +323,29 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         
         return dra
 
-    def check_path_exist(self, dra, path) -> bool:
-        try:
-            current = dra.initial_state
-            for symbol in path:
-                found = False
-                for (guard, action), next_state in current.transitions.items():
-                    if hasattr(dra, '_evaluate_guard'):
-                        if dra._evaluate_guard(guard, symbol, [None]*dra.num_registers):
-                            current = next_state
-                            found = True
-                            break
-                    else:
-                        # fallback: accept all transitions
-                        current = next_state
-                        found = True
-                        break
-                if not found:
-                    return False
-            return True
-        except Exception:
-            return False
+
+    # def check_path_exist(self, dra, path) -> bool:
+    #     try:
+    #         current = dra.initial_state
+    #         for symbol in path:
+    #             found = False
+    #             for (guard, action), next_state in current.transitions.items():
+    #                 if hasattr(dra, '_evaluate_guard'):
+    #                     if dra._evaluate_guard(guard, symbol, [None]*dra.num_registers):
+    #                         current = next_state
+    #                         found = True
+    #                         break
+    #                 else:
+    #                     # fallback: accept all transitions
+    #                     current = next_state
+    #                     found = True
+    #                     break
+    #             if not found:
+    #                 return False
+    #         return True
+    #     except Exception:
+    #         return False
+
 
     def check_path_accepted(self, dra, path) -> bool:
         """
@@ -402,6 +360,7 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         """
         # Use debug=False to avoid teacher's decode bug with Double theory
         return dra.accepts_input(path, debug=False)
+    
     
     def _evaluate_guard_tuple(self, guard_tuple, symbol, registers, constants):
         """
@@ -497,17 +456,17 @@ class RegisterAutomataLearner(BaseAutomataLearner):
             # Unknown format, safe fallback
             return True
 
-    def clone_automaton(self, dra):
-        import copy
-        return copy.deepcopy(dra)
+    # def clone_automaton(self, dra):
+    #     import copy
+    #     return copy.deepcopy(dra)
 
-    def serialize_automaton(self, dra) -> int:
-        return hash(str(dra))
+    # def serialize_automaton(self, dra) -> int:
+    #     return hash(str(dra))
 
-    def automaton_to_graphviz(self, dra, filename="dra_graph", output_dir="output") -> str:
-        dra.visualize(filename, output_dir=output_dir)
-        print("Proposed: ", dra)
-        return f"{output_dir}/{filename}.dot.png"
+    # def automaton_to_graphviz(self, dra, filename="dra_graph", output_dir="output") -> str:
+    #     dra.visualize(filename, output_dir=output_dir)
+    #     print("Proposed: ", dra)
+    #     return f"{output_dir}/{filename}.dot.png"
     
     def _get_useful_assignments(self, ra, max_assignments=5):
         """
@@ -530,7 +489,6 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         useful.append(identity_id)
         
         # Categorize assignments by type
-        # 关键：过滤掉包含常量赋值的 assignments
         curr_assignments = []  # Store curr value (no constants)
         register_copy = []     # Copy between registers (no constants)
         other_assignments = [] # Other types
@@ -541,7 +499,7 @@ class RegisterAutomataLearner(BaseAutomataLearner):
             
             has_curr = False
             has_reg_copy = False
-            has_constant = False  # 新增：检测常量赋值
+            has_constant = False
             
             for lhs, rhs in assigns:
                 if rhs == "curr":
@@ -1492,13 +1450,11 @@ class RegisterAutomataLearner(BaseAutomataLearner):
         # Initialize metrics for first iteration
         if iteration == 0:
             for ra in ra_list:
-                t_idx = set(i for i, p in enumerate(data) if self.check_path_exist(ra, p))
                 accepts = np.array([self.check_path_accepted(ra, p) for p in data])
                 true_accept = np.sum((labels == 1) & (accepts == True))
                 false_reject = np.sum((labels == 0) & (accepts == False))
                 
                 ra_id = id(ra)
-                state['t_idx'][ra_id] = t_idx
                 state['t_nsamples'][ra_id] = float(len(data))
                 state['t_accepted'][ra_id] = float(np.sum(accepts))
                 state['t_positives'][ra_id] = float(true_accept)
@@ -1507,7 +1463,7 @@ class RegisterAutomataLearner(BaseAutomataLearner):
                 
                 print("--------------------------------------------")
                 print(f"Proposed RA ID: {ra_id}")
-                print(self.automaton_to_graphviz(ra))
+                # print(self.automaton_to_graphviz(ra))
             
             return ra_list
         

@@ -55,10 +55,6 @@ LearnerFactory.register('register', RegisterAutomataLearner)  # Alias
 # Global instances and convenience functions
 # ============================================================
 
-# Default instances (backward compatible)
-AUTO_INSTANCE = DFALearner()
-RA_INSTANCE = None  # Lazy initialization
-
 
 def get_learner(learner_type: str = 'dfa', new_instance: bool = False) -> BaseAutomataLearner:
     """
@@ -73,17 +69,14 @@ def get_learner(learner_type: str = 'dfa', new_instance: bool = False) -> BaseAu
         learner = get_learner('ra')        # Shared RA learner
         learner = get_learner('dfa', True) # New DFA instance
     """
-    global RA_INSTANCE
     
     if new_instance:
         return LearnerFactory.create(learner_type, new_instance=True)
     
     learner_type = learner_type.lower()
     if learner_type == 'dfa':
-        return AUTO_INSTANCE
+        return DFALearner()
     elif learner_type in ('ra', 'register'):
-        if RA_INSTANCE is None:
-            RA_INSTANCE = RegisterAutomataLearner()
-        return RA_INSTANCE
+        return RegisterAutomataLearner()
     
     return LearnerFactory.create(learner_type, new_instance=False)

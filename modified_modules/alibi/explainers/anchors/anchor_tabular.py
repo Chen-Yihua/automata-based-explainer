@@ -3,24 +3,22 @@ from collections import OrderedDict, defaultdict
 from itertools import accumulate
 from typing import (Any, Callable, DefaultDict, Dict, List, Optional, Set,
                     Tuple, Type, Union)
-from xml.sax.handler import all_features
 
 import numpy as np
 
-from learner.dfa_learner import DFASampler
-from learner.ra_learner import RASampler
-from modified_modules.alibi.api.defaults import DEFAULT_DATA_ANCHOR, DEFAULT_META_ANCHOR
-from modified_modules.alibi.api.interfaces import Explainer, Explanation, FitMixin
-from modified_modules.alibi.exceptions import (NotFittedError,
+from alibi.api.defaults import DEFAULT_DATA_ANCHOR, DEFAULT_META_ANCHOR
+from alibi.api.interfaces import Explainer, Explanation, FitMixin
+from alibi.exceptions import (NotFittedError,
                               PredictorCallError,
                               PredictorReturnTypeError)
-from modified_modules.alibi.utils.discretizer import Discretizer
-from modified_modules.alibi.utils.mapping import ohe_to_ord, ord_to_ohe
-from modified_modules.alibi.utils.wrappers import ArgmaxTransformer
+from alibi.utils.discretizer import Discretizer
+from alibi.utils.mapping import ohe_to_ord, ord_to_ohe
+from alibi.utils.wrappers import ArgmaxTransformer
 from .anchor_base import AnchorBaseBeam
 from .anchor_explanation import AnchorExplanation
-# from aalpy.automata import Dfa
-# import random
+
+from src.explainer.automata_beam import AutomataBeamSearch
+
     
 class TabularSampler:
     """ A sampler that uses an underlying training set to draw records that have a subset of features with
@@ -71,11 +69,9 @@ class TabularSampler:
         self.ord_lookup: Dict[int, set] = {}
         self.enc2feat_idx: Dict[int, int] = {}
 
-        self.raw_coverage_data = []
-
     def deferred_init(self, train_data: Union[np.ndarray, Any], d_train_data: Union[np.ndarray, Any]) -> Any:
         """
-        Initialise the tabular sampler object with data, (optional) discretizer, feature statistics and
+        Initialise the tabular sampler object with data, discretizer, feature statistics and
         build an index from feature values and bins to database rows for each feature.
 
         Parameters
@@ -91,8 +87,7 @@ class TabularSampler:
         """
 
         self._set_data(train_data, d_train_data)
-        if self.disc_perc is not None:
-            self._set_discretizer(self.disc_perc)
+        self._set_discretizer(self.disc_perc)
         self._set_numerical_feats_stats()
         self.val2idx = self._get_data_index()
 
@@ -103,8 +98,8 @@ class TabularSampler:
         Initialise sampler training set and discretized training set, set number of records.
         """
 
-        self.train_data = train_data # 儲存 coverage data 給不同 sampler 使用
-        self.d_train_data = d_train_data 
+        self.train_data = train_data
+        self.d_train_data = d_train_data
         self.n_records = train_data.shape[0]
 
     def _set_discretizer(self, disc_perc: Tuple[Union[int, float], ...]) -> None:
@@ -124,24 +119,10 @@ class TabularSampler:
         Compute `min` and `max` for numerical features so that sampling from this range can be performed if
         a sampling request has bin that is not in the training data.
         """
-        # variable-length data
-        if isinstance(self.train_data[0], (list, np.ndarray)):
-            all_values = []
-            for seq in self.train_data:
-                numeric_vals = [v for v in seq if isinstance(v, (int, float, np.number))]
-                all_values.extend(numeric_vals)
 
-            if len(all_values) == 0:
-                self.min = np.array([np.nan])
-                self.max = np.array([np.nan])
-            else:
-                self.min = np.array([np.min(all_values)])
-                self.max = np.array([np.max(all_values)])
-        # fixed length data
-        else:
-            self.min, self.max = np.full(self.train_data.shape[1], np.nan), np.full(self.train_data.shape[1], np.nan)
-            self.min[self.numerical_features] = np.min(self.train_data[:, self.numerical_features], axis=0)
-            self.max[self.numerical_features] = np.max(self.train_data[:, self.numerical_features], axis=0)
+        self.min, self.max = np.full(self.train_data.shape[1], np.nan), np.full(self.train_data.shape[1], np.nan)
+        self.min[self.numerical_features] = np.min(self.train_data[:, self.numerical_features], axis=0)
+        self.max[self.numerical_features] = np.max(self.train_data[:, self.numerical_features], axis=0)
 
     def set_instance_label(self, X: np.ndarray) -> None:
         """
@@ -152,28 +133,8 @@ class TabularSampler:
         X
             Instance to be explained.
         """
-        # Support both numpy array and list input for variable/fixed length data
-        # variable length data (object dtype or list of lists)
-        if hasattr(self.d_train_data, 'dtype') and self.d_train_data.dtype == object:
-            # Accept list or array, shape (seq_len,) or (1, seq_len)
-            if isinstance(X, list):
-                label: int = self.predictor([X])[0]
-            elif isinstance(X, np.ndarray):
-                if X.ndim == 1:
-                    label: int = self.predictor([X.tolist()])[0]
-                else:  # X.ndim == 2
-                    label: int = self.predictor(X)[0]
-            else:
-                label: int = self.predictor([X])[0]
-        # fixed length data (2D array)
-        else:
-            if isinstance(X, list):
-                label: int = self.predictor(np.array(X).reshape(1, -1))[0]
-            elif isinstance(X, np.ndarray):
-                label: int = self.predictor(X.reshape(1, -1))[0]
-            else:
-                label: int = self.predictor(np.array([X]))[0]
-        self._last_instance_X = X
+
+        label: int = self.predictor(X.reshape(1, -1))[0]
         self.instance_label = label
 
     def set_n_covered(self, n_covered: int) -> None:
@@ -203,27 +164,7 @@ class TabularSampler:
         """
 
         all_features = self.numerical_features + self.categorical_features
-        val2idx: Dict[int, DefaultDict[int, np.ndarray]] = {f_id: defaultdict(list) for f_id in all_features}
-
-        # variable length data
-        if self.d_train_data.dtype == object: # list of lists
-            for i, seq in enumerate(self.d_train_data):
-                for f_id in range(len(seq)):
-                    val = seq[f_id]
-                    # 若 val 是 numpy array，轉成 tuple 才能當 key
-                    key = tuple(val) if isinstance(val, np.ndarray) else val
-                    # For variable-length sequences, dynamically create f_id entries as needed
-                    if f_id not in val2idx:
-                        val2idx[f_id] = defaultdict(list)
-                    val2idx[f_id][key].append(i)
-
-            for f_id in val2idx:
-                for val in val2idx[f_id]:
-                    val2idx[f_id][val] = np.array(val2idx[f_id][val])
-
-            return val2idx
-
-        # fixed length data
+        val2idx: Dict[int, DefaultDict[int, np.ndarray]] = {f_id: defaultdict(None) for f_id in all_features}
         for feat in val2idx:
             for value in range(len(self.feature_values[feat])):
                 val2idx[feat][value] = (self.d_train_data[:, feat] == value).nonzero()[0]
@@ -270,40 +211,27 @@ class TabularSampler:
         """
 
         raw_data, d_raw_data, coverage = self.perturbation(anchor[1], num_samples)
-        self.raw_coverage_data = raw_data
+
         # use the sampled, discretized raw data to construct a data matrix with the categorical ...
         # ... and binned ordinal data (1 if in bin, 0 otherwise)
-        # variable length data
-        if self.d_train_data.dtype == object:
-            data = []
-            for seq in d_raw_data:
-                data.append(seq)
-        # fixed length data
-        else:
-            data = np.zeros((num_samples, len(self.enc2feat_idx)), int)
-            for i in self.enc2feat_idx:
-                if i in self.cat_lookup:
-                    data[:, i] = (d_raw_data[:, self.enc2feat_idx[i]] == self.cat_lookup[i])
-                else:
-                    d_records_sampled = d_raw_data[:, self.enc2feat_idx[i]]
-                    lower_bin, upper_bin = min(list(self.ord_lookup[i])), max(list(self.ord_lookup[i]))
-                    idxs = np.where((lower_bin <= d_records_sampled) & (d_records_sampled <= upper_bin))
-                    data[idxs, i] = 1
+        data = np.zeros((num_samples, len(self.enc2feat_idx)), int)
+        for i in self.enc2feat_idx:
+            if i in self.cat_lookup:
+                data[:, i] = (d_raw_data[:, self.enc2feat_idx[i]] == self.cat_lookup[i])
+            else:
+                d_records_sampled = d_raw_data[:, self.enc2feat_idx[i]]
+                lower_bin, upper_bin = min(list(self.ord_lookup[i])), max(list(self.ord_lookup[i]))
+                idxs = np.where((lower_bin <= d_records_sampled) & (d_records_sampled <= upper_bin))
+                data[idxs, i] = 1
 
         if compute_labels:
             labels = self.compare_labels(raw_data)
-            if self.d_train_data.dtype == object:
-                covered_true = [seq for seq, lab in zip(raw_data, labels) if lab == self.instance_label][:self.n_covered_ex]
-                covered_false = [seq for seq, lab in zip(raw_data, labels) if lab != self.instance_label][:self.n_covered_ex]
-
-                covered_true = np.array(covered_true, dtype=object)
-                covered_false = np.array(covered_false, dtype=object)
-            else:
-                covered_true = raw_data[labels, :][:self.n_covered_ex]
-                covered_false = raw_data[np.logical_not(labels), :][:self.n_covered_ex]
-            return [raw_data, covered_true, covered_false, labels.astype(int), data, coverage, anchor[0]]  # type: ignore[return-value]
+            covered_true = raw_data[labels, :][:self.n_covered_ex]
+            covered_false = raw_data[np.logical_not(labels), :][:self.n_covered_ex]
+            return [covered_true, covered_false, labels.astype(int), data, coverage,
+                    anchor[0]]  # type: ignore[return-value]
         else:
-            return [d_raw_data]  # only binarised data is used for coverage computation
+            return [data]  # only binarised data is used for coverage computation
 
     def compare_labels(self, samples: np.ndarray) -> np.ndarray:
         """
@@ -319,8 +247,8 @@ class TabularSampler:
         -------
         An array of integers indicating whether the prediction was the same as the instance label.
         """
-        preds = self.predictor(samples)
-        return preds == self.instance_label
+
+        return self.predictor(samples) == self.instance_label
 
     def perturbation(self, anchor: tuple, num_samples: int) -> Tuple[np.ndarray, np.ndarray, float]:
         """
@@ -612,12 +540,7 @@ class TabularSampler:
         Each continuous variable has `n_bins - 1` corresponding entries in `ord_lookup`.
         """
 
-        # variable length data
-        if self.d_train_data.dtype == object: # list of lists
-            X = self.disc.discretize([X])[0]  # map continuous features to ordinal discrete variables
-        # fixed length data
-        else:
-            X = self.disc.discretize(X.reshape(1, -1))[0]  # map continuous features to ordinal discrete variables
+        X = self.disc.discretize(X.reshape(1, -1))[0]  # map continuous features to ordinal discrete variables
 
         if not self.numerical_features:  # data contains only categorical variables
             self.cat_lookup = dict(zip(self.categorical_features, X))
@@ -665,9 +588,7 @@ class TabularSampler:
                 self.cat_lookup[cat_enc_idx] = X[cat_feat_idx]
                 self.enc2feat_idx[cat_enc_idx] = cat_feat_idx
                 cat_enc_idx += 1
-        # self.cat_lookup = {}
-        # self.ord_lookup = {}
-        # self.enc2feat_idx = {}
+
         return [self.cat_lookup, self.ord_lookup, self.enc2feat_idx]
 
 
@@ -712,8 +633,6 @@ class AnchorTabular(Explainer, FitMixin):
 
         self.ohe = ohe
         self.feature_names = feature_names
-        self._cov_train_data = None
-        self._cov_d_train_data = None
 
         if ohe and categorical_names:
             self.cat_vars_ord = {col: len(values) for col, values in categorical_names.items()}
@@ -736,7 +655,6 @@ class AnchorTabular(Explainer, FitMixin):
         self.numerical_features = [x for x in range(len(feature_names)) if x not in self.categorical_features]
 
         self.samplers: list = []
-        # self.task_type = None
         self.ohe = ohe
         self.seed = seed
 
@@ -745,165 +663,48 @@ class AnchorTabular(Explainer, FitMixin):
 
         self._fitted = False
 
-    def fit(self,
-            automaton_type: str,
-            train_data: Optional[np.ndarray] = None,
-            disc_perc: Optional[Tuple[Union[int, float], ...]] = (25, 50, 75),
-            alphabet: List = [],
-            **kwargs,
-        ) -> "AnchorTabular":
+    def fit(self,  # type: ignore[override]
+            train_data: np.ndarray,
+            disc_perc: Tuple[Union[int, float], ...] = (25, 50, 75),
+            **kwargs) -> "AnchorTabular":
         """
-        Fit explainer.
+        Fit discretizer to train data to bin numerical features into ordered bins and compute statistics for
+        numerical features. Create a mapping between the bin numbers of each discretised numerical feature and the
+        row id in the training set where it occurs.
 
-        For DFA sequence tasks, we directly use DFASampler.
-        This avoids requiring a TabularSampler and a pre-generated train_data pool.
+        Parameters
+        ----------
+        train_data
+            Representative sample from the training data.
+        disc_perc
+            List with percentiles (`int`) used for discretization.
         """
-        data_type = kwargs.pop("data_type", "automata")
-        initial_dfa = kwargs.pop("initial_dfa", None)
 
-        self.initial_dfa = initial_dfa
-
-        # ==========================================================
-        # DFA sequence mode: no TabularSampler, no train_data needed.
-        # Samples are generated later by DFASampler.perturbation()
-        # after set_instance_label(X).
-        # ==========================================================
-        if automaton_type.upper() == "DFA":
-            sampler = DFASampler(
-                predictor=self._predictor,
-                base_sampler=None,
-                alphabet=alphabet,
-                seed=self.seed,
-                data_type=data_type,
-                initial_dfa=initial_dfa,
-            )
-
-            self.samplers = [sampler]
-            self._cov_train_data = train_data
-            self._cov_d_train_data = train_data
-            self.meta["params"].update(disc_perc=disc_perc)
-            self._fitted = True
-            return self
-
-        # ==========================================================
-        # RA / original tabular mode: keep original TabularSampler path.
-        # ==========================================================
-        if train_data is None:
-            raise ValueError("train_data is required for non-DFA automaton_type.")
-
+        # transform one-hot encodings to labels if ohe == True
         train_data = ohe_to_ord(X_ohe=train_data, cat_vars_ohe=self.cat_vars_ohe)[0] if self.ohe else train_data
 
-        if disc_perc is not None and self.numerical_features:
-            disc = Discretizer(
-                train_data,
-                self.numerical_features,
-                self.feature_names,
-                percentiles=disc_perc,
-            )
-            d_train_data = disc.discretize(train_data)
-            self.feature_values.update(disc.feature_intervals)
-        else:
-            disc = None
-            d_train_data = train_data
+        # discretization of continuous features
+        disc = Discretizer(train_data, self.numerical_features, self.feature_names, percentiles=disc_perc)
+        d_train_data = disc.discretize(train_data)
+        self.feature_values.update(disc.feature_intervals)
 
-        tab_sampler = TabularSampler(
-            self._predictor,
+        sampler = TabularSampler(
+            self._predictor,  # type: ignore[arg-type] # TODO: fix me, ignored as can be None due to saving.py
             disc_perc,
             self.numerical_features,
             self.categorical_features,
             self.feature_names,
             self.feature_values,
             seed=self.seed,
-        ).deferred_init(train_data, d_train_data)
+        )
+        self.samplers = [sampler.deferred_init(train_data, d_train_data)]
 
-        if automaton_type.upper() == "RA":
-            sampler = RASampler(
-                predictor=self._predictor,
-                alphabet=alphabet,
-                base_sampler=copy.deepcopy(tab_sampler),
-                seed=self.seed,
-            )
-        else:
-            raise ValueError("Unknown automaton_type")
+        # update metadata
+        self.meta['params'].update(disc_perc=disc_perc)
 
-        self.samplers = [sampler]
-        self._cov_train_data = train_data
-        self._cov_d_train_data = d_train_data
-        self.meta["params"].update(disc_perc=disc_perc)
         self._fitted = True
+
         return self
-    # def fit(self,
-    #         automaton_type: str,
-    #         train_data: np.ndarray,
-    #         disc_perc: Optional[Tuple[Union[int, float], ...]] = (25, 50, 75),
-    #         alphabet: List = [],
-    #         **kwargs) -> "AnchorTabular":
-    #     """
-    #     Fit discretizer to train data to bin numerical features into ordered bins and compute statistics for
-    #     numerical features. Create a mapping between the bin numbers of each discretised numerical feature and the
-    #     row id in the training set where it occurs.
-        
-    #     Parameters
-    #     ----------
-    #     data_type : str, optional
-    #         Type of data being learned: 'automata' or 'real_world' (default: 'automata').
-    #         Determines how the teacher predictor is applied:
-    #         - 'automata': DFA from DOT file (ground truth teacher)
-    #         - 'real_world': Trained RNN classifier with noisy labels
-    #     initial_dfa : Dfa, optional
-    #         Initial DFA for automata regular languages. When provided, labels are generated
-    #         from this DFA instead of using the predictor. (default: None)
-    #     """
-    #     # Extract optional parameters
-    #     data_type = kwargs.pop('data_type', 'automata')
-    #     initial_dfa = kwargs.pop('initial_dfa', None)
-    #     # persist initial_dfa on the explainer so it can be forwarded to AnchorBaseBeam
-    #     self.initial_dfa = initial_dfa
-        
-    #     train_data = ohe_to_ord(X_ohe=train_data, cat_vars_ohe=self.cat_vars_ohe)[0] if self.ohe else train_data
-    #     if disc_perc is not None and self.numerical_features:
-    #         disc = Discretizer(train_data, self.numerical_features, self.feature_names, percentiles=disc_perc)
-    #         d_train_data = disc.discretize(train_data)
-    #         self.feature_values.update(disc.feature_intervals)
-    #     else:
-    #         disc = None
-    #         d_train_data = train_data
-
-    #     tab_sampler = TabularSampler(
-    #         self._predictor,
-    #         disc_perc,
-    #         self.numerical_features,
-    #         self.categorical_features,
-    #         self.feature_names,
-    #         self.feature_values,
-    #         seed=self.seed,
-    #     ).deferred_init(train_data, d_train_data)
-
-    #     if automaton_type.upper() == 'DFA':
-    #         sampler = DFASampler(
-    #             predictor=self._predictor,
-    #             base_sampler=copy.deepcopy(tab_sampler),
-    #             alphabet=alphabet,
-    #             seed=self.seed,
-    #             data_type=data_type,
-    #             initial_dfa=initial_dfa
-    #         )
-    #     elif automaton_type.upper() == 'RA':
-    #         sampler = RASampler(
-    #             predictor=self._predictor,
-    #             alphabet=alphabet,
-    #             base_sampler=copy.deepcopy(tab_sampler),
-    #             seed=self.seed
-    #         )
-    #     else:
-    #         raise ValueError("Unknown automaton_type")
-    #     self.samplers = [sampler]
-
-    #     self._cov_train_data = train_data
-    #     self._cov_d_train_data = d_train_data
-    #     self.meta['params'].update(disc_perc=disc_perc)
-    #     self._fitted = True
-    #     return self
 
     def _build_sampling_lookups(self, X: np.ndarray) -> None:
         """
@@ -920,27 +721,21 @@ class AnchorTabular(Explainer, FitMixin):
         self.cat_lookup, self.ord_lookup, self.enc2feat_idx = lookups
 
     def explain(self,
-                type : str,
-                automaton_type: str,
-                alphabet: List,
                 X: np.ndarray,
-                edit_distance: int = 4,
-                accuracy_threshold: float = 0.95,
+                threshold: float = 0.95,
                 delta: float = 0.1,
                 tau: float = 0.15,
-                batch_size: int = 300,
+                batch_size: int = 100,
+                coverage_samples: int = 10000,
                 beam_size: int = 1,
+                stop_on_first: bool = False,
+                max_anchor_size: Optional[int] = None,
+                min_samples_start: int = 100,
                 n_covered_ex: int = 10,
                 binary_cache_size: int = 10000,
                 cache_margin: int = 1000,
-                init_num_samples: int = 1000,
                 verbose: bool = False,
                 verbose_every: int = 1,
-                output_dir: str = "test_result/explain",
-                use_kllucb: bool = True,
-                max_evaluations: Optional[int] = None,
-                prebuilt_init = None,
-                task_type: Optional[str] = None,
                 **kwargs: Any) -> Explanation:
         """
         Explain prediction made by classifier on instance `X`.
@@ -949,52 +744,50 @@ class AnchorTabular(Explainer, FitMixin):
         ----------
         X
             Instance to be explained.
-        edit_distance
-            Number of changes (replace/append/delete) to make during perturbation sampling.
         threshold
-            Minimum dfa accuracy threshold. The algorithm tries to find an dfa that maximizes the coverage
-            under accuracy constraint. The accuracy constraint is formally defined as
-            :math:`P(acc(A) \\ge t) \\ge 1 - \\delta`, where :math:`A` is an dfa, :math:`t` is the `threshold`
-            parameter, :math:`\\delta` is the `delta` parameter, and :math:`acc(\\cdot)` denotes the accuracy
-            of an dfa. In other words, we are seeking for an dfa having its accuracy greater or equal than
-            the given `threshold` with a confidence of `(1 - delta)`. A higher value guarantees that the dfas are
+            Minimum anchor precision threshold. The algorithm tries to find an anchor that maximizes the coverage
+            under precision constraint. The precision constraint is formally defined as
+            :math:`P(prec(A) \\ge t) \\ge 1 - \\delta`, where :math:`A` is an anchor, :math:`t` is the `threshold`
+            parameter, :math:`\\delta` is the `delta` parameter, and :math:`prec(\\cdot)` denotes the precision
+            of an anchor. In other words, we are seeking for an anchor having its precision greater or equal than
+            the given `threshold` with a confidence of `(1 - delta)`. A higher value guarantees that the anchors are
             faithful to the model, but also leads to more computation time. Note that there are cases in which the
-            accuracy constraint cannot be satisfied due to the quantile-based discretisation of the numerical
-            features. If that is the case, the best (i.e. highest coverage) non-eligible dfa is returned.
+            precision constraint cannot be satisfied due to the quantile-based discretisation of the numerical
+            features. If that is the case, the best (i.e. highest coverage) non-eligible anchor is returned.
         delta
-            Significance threshold. `1 - delta` represents the confidence threshold for the dfa accuracy
-            (see `threshold`) and the selection of the best dfa candidate in each iteration (see `tau`).
+            Significance threshold. `1 - delta` represents the confidence threshold for the anchor precision
+            (see `threshold`) and the selection of the best anchor candidate in each iteration (see `tau`).
         tau
-            Multi-armed bandit parameter used to select candidate dfas in each iteration. The multi-armed bandit
-            algorithm tries to find within a tolerance `tau` the most promising (i.e. according to the accuracy)
-            `beam_size` candidate dfa(s) from a list of proposed dfas. Formally, when the `beam_size=1`,
-            the multi-armed bandit algorithm seeks to find an dfa :math:`A` such that
-            :math:`P(acc(A) \\ge acc(A^\\star) - \\tau) \\ge 1 - \\delta`, where :math:`A^\\star` is the dfa
-            with the highest true accuracy (which we don't know), :math:`\\tau` is the `tau` parameter,
-            :math:`\\delta` is the `delta` parameter, and :math:`acc(\\cdot)` denotes the accuracy of an dfa.
+            Multi-armed bandit parameter used to select candidate anchors in each iteration. The multi-armed bandit
+            algorithm tries to find within a tolerance `tau` the most promising (i.e. according to the precision)
+            `beam_size` candidate anchor(s) from a list of proposed anchors. Formally, when the `beam_size=1`,
+            the multi-armed bandit algorithm seeks to find an anchor :math:`A` such that
+            :math:`P(prec(A) \\ge prec(A^\\star) - \\tau) \\ge 1 - \\delta`, where :math:`A^\\star` is the anchor
+            with the highest true precision (which we don't know), :math:`\\tau` is the `tau` parameter,
+            :math:`\\delta` is the `delta` parameter, and :math:`prec(\\cdot)` denotes the precision of an anchor.
             In other words, in each iteration, the algorithm returns with a probability of at least `1 - delta` an
-            dfa :math:`A` with an accuracy within an error tolerance of `tau` from the accuracy of the
-            highest true accuracy dfa :math:`A^\\star`. A bigger value for `tau` means faster convergence but also
-            looser dfa conditions.
+            anchor :math:`A` with a precision within an error tolerance of `tau` from the precision of the
+            highest true precision anchor :math:`A^\\star`. A bigger value for `tau` means faster convergence but also
+            looser anchor conditions.
         batch_size
             Batch size used for sampling. The Anchor algorithm will query the black-box model in batches of size
-            `batch_size`. A larger `batch_size` gives more confidence in the dfa, again at the expense of
+            `batch_size`. A larger `batch_size` gives more confidence in the anchor, again at the expense of
             computation time since it involves more model prediction calls.
         coverage_samples
             Number of samples used to estimate coverage from during result search.
         beam_size
-            Number of candidate dfas selected by the multi-armed bandit algorithm in each iteration from a list of
-            proposed dfas. A bigger beam  width can lead to a better overall dfa (i.e. prevents the algorithm
+            Number of candidate anchors selected by the multi-armed bandit algorithm in each iteration from a list of
+            proposed anchors. A bigger beam  width can lead to a better overall anchor (i.e. prevents the algorithm
             of getting stuck in a local maximum) at the expense of more computation time.
         stop_on_first
-            If ``True``, the beam search algorithm will return the first dfa that has satisfies the
+            If ``True``, the beam search algorithm will return the first anchor that has satisfies the
             probability constraint.
         max_anchor_size
             Maximum number of features in result.
         min_samples_start
             Min number of initial samples.
         n_covered_ex
-            How many examples where dfas apply to store for each dfa sampled during search
+            How many examples where anchors apply to store for each anchor sampled during search
             (both examples where prediction on samples agrees/disagrees with `desired_label` are stored).
         binary_cache_size
             The result search pre-allocates `binary_cache_size` batches for storing the binary arrays
@@ -1003,9 +796,9 @@ class AnchorTabular(Explainer, FitMixin):
             When only ``max(cache_margin, batch_size)`` positions in the binary cache remain empty, a new cache
             of the same size is pre-allocated to continue buffering samples.
         verbose
-            Display updates during the dfa search iterations.
+            Display updates during the anchor search iterations.
         verbose_every
-            Frequency of displayed iterations during dfa search process.
+            Frequency of displayed iterations during anchor search process.
 
         Returns
         -------
@@ -1024,51 +817,43 @@ class AnchorTabular(Explainer, FitMixin):
         if not self._fitted:
             raise NotFittedError(self.meta["name"])
 
+        # transform one-hot encodings to labels if ohe == True
+        X = ohe_to_ord(X_ohe=X.reshape(1, -1), cat_vars_ohe=self.cat_vars_ohe)[0].reshape(-1) if self.ohe else X
+
         # get params for storage in meta
         params = locals()
         remove = ['X', 'self']
         for key in remove:
             params.pop(key)
-        print("Params: ", params)
-        
+
         for sampler in self.samplers:
             sampler.set_instance_label(X)
             sampler.set_n_covered(n_covered_ex)
-            sampler.edit_distance = edit_distance
         self.instance_label = self.samplers[0].instance_label
-        # self.task_type = task_type
 
         # build feature encoding and mappings from the instance values to database rows where
         # similar records are found get anchors and add metadata
         self._build_sampling_lookups(X)
 
+        # get anchors
         mab = AnchorBaseBeam(
             samplers=self.samplers,
-            predictor=self._predictor,
             sample_cache_size=binary_cache_size,
             cache_margin=cache_margin,
-            initial_dfa=self.initial_dfa,
             **kwargs)
         result: Any = mab.anchor_beam(
-            type=type,
-            alphabet=alphabet,
-            automaton_type=automaton_type,
-            delta=delta, 
-            epsilon=tau,
-            accuracy_threshold=accuracy_threshold,
+            delta=delta, epsilon=tau,
+            desired_confidence=threshold,
             beam_size=beam_size,
+            min_samples_start=min_samples_start,
+            max_anchor_size=max_anchor_size,
             batch_size=batch_size,
-            init_num_samples=init_num_samples,
+            coverage_samples=coverage_samples,
             verbose=verbose,
             verbose_every=verbose_every,
-            output_dir=output_dir,
-            max_evaluations=max_evaluations,
-            prebuilt_init=prebuilt_init,
-            use_kllucb=use_kllucb,
-            **kwargs
         )
         self.mab = mab
-        
+
         return self._build_explanation(X, result, self.instance_label, params)
 
     def _build_explanation(self, X: np.ndarray, result: dict, predicted_label: int, params: dict) -> Explanation:
@@ -1091,36 +876,24 @@ class AnchorTabular(Explainer, FitMixin):
         `Explanation` object containing the anchor explaining the instance with additional metadata as attributes. \
 
         """
+
+        self.add_names_to_exp(result)
+        result['prediction'] = np.array([predicted_label])
         result['instance'] = ord_to_ohe(np.atleast_2d(X), self.cat_vars_ord)[0].reshape(-1) if self.ohe else X
         result['instances'] = ord_to_ohe(np.atleast_2d(X), self.cat_vars_ord)[0] if self.ohe else np.atleast_2d(X)
-        
+        result['examples'] = [
+            {k: ord_to_ohe(np.atleast_2d(v), self.cat_vars_ord)[0] for k, v in example.items() if v.size}
+            for example in result['examples']
+        ] if self.ohe else result['examples']
         exp = AnchorExplanation('tabular', result)
-        initial_automata = exp.exp_map['automata'][0]
-        initial_state = exp.exp_map['states'][0]
-        initial_training_accuracy = exp.exp_map['training_accuracies'][0]
-        initial_validation_accuracy = exp.exp_map['validation_accuracies'][0]
-        final_automata = exp.exp_map['automata'][-1]
-        final_state = exp.exp_map['states'][-1]
-        final_training_accuracy = exp.exp_map['training_accuracies'][-1]
-        final_validation_accuracy = exp.exp_map['validation_accuracies'][-1]
-        success = exp.exp_map['success']
-        budget_used = exp.exp_map['budget_used']
-        init_automaton_time = exp.exp_map.get('init_automaton_time', 0.0)
 
         # output explanation dictionary
         data = copy.deepcopy(DEFAULT_DATA_ANCHOR)
         data.update(
-            initial_automata=initial_automata,
-            initial_state=initial_state,
-            initial_training_accuracy=initial_training_accuracy,
-            initial_validation_accuracy=initial_validation_accuracy,
-            final_automata=final_automata,
-            final_state=final_state,
-            final_training_accuracy=final_training_accuracy,
-            final_validation_accuracy=final_validation_accuracy,
-            success=success,
-            budget_used=budget_used,  # DFA evaluation count for fair comparison
-            init_automaton_time=init_automaton_time,
+            anchor=exp.names(),
+            precision=exp.precision(),
+            coverage=exp.coverage(),
+            raw=exp.exp_map
         )
 
         # create explanation object
