@@ -42,7 +42,7 @@ DEFAULT_LANGUAGE_CONFIGS = {
         filename="secure_handshake.dot",
         agreement_threshold=0.9,
         delta=0.01,
-        tau=0.1,
+        tau=0.05,
         batch_size=1000,
         beam_size=1,
         init_num_samples=1000,
@@ -60,7 +60,7 @@ DEFAULT_LANGUAGE_CONFIGS = {
         filename="document_release_workflow.dot",
         agreement_threshold=0.9,
         delta=0.01,
-        tau=0.1,
+        tau=0.05,
         batch_size=1000,
         beam_size=1,
         init_num_samples=1000,
@@ -78,7 +78,7 @@ DEFAULT_LANGUAGE_CONFIGS = {
         filename="multi_obligation_color_order.dot",
         agreement_threshold=0.9,
         delta=0.01,
-        tau=0.1,
+        tau=0.05,
         batch_size=1000,
         beam_size=1,
         init_num_samples=1000,
@@ -198,7 +198,7 @@ def run_one_automata(automata_code: str, cfg: dict, output_root: str) -> dict | 
         print(f"  DFA: {len(teacher.states)} states, alphabet={alphabet}")
     except Exception as exc:
         print(f"  [ERROR] Failed to load automata DFA: {exc}")
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stdout)
         return None
 
     if cfg.get("test_instances") is not None:
@@ -243,7 +243,7 @@ def run_one_automata(automata_code: str, cfg: dict, output_root: str) -> dict | 
         except Exception as exc:
             print(f"\n[ERROR] {result_key}: {exc}")
             print("[TRACEBACK]")
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stdout)
             all_instance_results[result_key] = None
 
     return all_instance_results
@@ -328,10 +328,20 @@ def main() -> None:
             except Exception as exc:
                 print(f"\n[ERROR] {automata_code}: {exc}")
                 print("[TRACEBACK]")
-                traceback.print_exc()
+                traceback.print_exc(file=sys.stdout)
                 all_results[automata_code] = None
 
         print_suite_summary(all_results)
+
+        exclude_keys = {"automata_name", "filename", "test_instance", "test_instances"}
+        print(f"\n{'=' * 70}")
+        print("  Experiment Parameters")
+        print(f"{'=' * 70}")
+        print(f"  Selected automata: {', '.join(automata.keys())}")
+        for key, value in sorted(first_cfg.items()):
+            if key not in exclude_keys:
+                print(f"  {key}: {value}")
+        print(f"{'=' * 70}")
     finally:
         sys.stdout = original_stdout
 

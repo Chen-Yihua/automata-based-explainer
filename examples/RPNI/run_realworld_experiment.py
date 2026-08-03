@@ -206,7 +206,7 @@ def run_one_language(lang_code: str, cfg: dict, output_root: str) -> dict | None
         except Exception as exc:
             print(f"\n[ERROR] {result_key}: {exc}")
             print("[TRACEBACK]")
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stdout)
             return result_key, None
 
     if len(test_instances) > 1:
@@ -241,6 +241,7 @@ def parse_args():
     parser.add_argument("--n_jobs", type=int, default=None, help="Number of worker threads for KL-LUCB sampling/agreement evaluation.")
     parser.add_argument("--no_prediction_cache", dest="use_prediction_cache", action="store_false", default=None, help="Disable teacher prediction cache.")
     parser.add_argument("--prediction_cache_max_size", type=int, default=None, help="Maximum cached teacher predictions. Use 0 for unlimited.")
+    parser.add_argument("--profile_time", dest="profile_time", action="store_true", default=None, help="Print a one-line profiling summary (time per search phase) after BeamSearch.")
     return parser.parse_args()
 
 
@@ -260,6 +261,7 @@ def main() -> None:
         "n_jobs": args.n_jobs,
         "use_prediction_cache": args.use_prediction_cache,
         "prediction_cache_max_size": (None if args.prediction_cache_max_size == 0 else args.prediction_cache_max_size),
+        "profile_time": args.profile_time,
     }
 
     languages = get_languages_config(overrides=overrides)
@@ -301,10 +303,20 @@ def main() -> None:
             except Exception as exc:
                 print(f"\n[ERROR] {lang_code}: {exc}")
                 print("[TRACEBACK]")
-                traceback.print_exc()
+                traceback.print_exc(file=sys.stdout)
                 all_results[lang_code] = None
 
         print_suite_summary(all_results)
+
+        exclude_keys = {"test_instance", "test_instances"}
+        print(f"\n{'=' * 70}")
+        print("  Experiment Parameters")
+        print(f"{'=' * 70}")
+        print(f"  Selected datasets: {', '.join(languages.keys())}")
+        for key, value in sorted(first_cfg.items()):
+            if key not in exclude_keys:
+                print(f"  {key}: {value}")
+        print(f"{'=' * 70}")
     finally:
         tee.close()
         sys.stdout = original_stdout
