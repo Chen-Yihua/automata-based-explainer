@@ -12,7 +12,8 @@ import itertools
 import random
 import sys
 import os
-from concurrent.futures import ProcessPoolExecutor
+import time
+from concurrent.futures import ProcessPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Tuple, List, List, Optional
 from collections import defaultdict
 import threading
@@ -48,6 +49,13 @@ from automaton.dfa_utils import (
 )
 from automaton.metrics import compute_acceptance_stats, compute_automaton_agreement
 
+# Per-path hard cap on ExplainLanguage.explain_word() (SAT-based minimal
+# hitting-set enumeration). Some (automaton, path) combinations make the
+# underlying solver blow up (observed: minutes) and the library's own
+# signal-based timeout does not actually interrupt it (its SIGALRM handler
+# is a no-op). Paths that exceed this bound are treated the same as any
+# other explain_word failure: no CXP record contributed for that path.
+_CXP_EXPLAIN_TIMEOUT_SECONDS = 60
 
 def _collect_cxp_records_for_path(args):
     dfa, path, alphabet_map, mata_path, collect_missing = args
@@ -504,6 +512,11 @@ class DFALearner(BaseAutomataLearner):
         # avoid paying process-pool startup cost on every candidate-generation
         # round. Lazily created on first use; see _get_process_pool().
         self._process_pool = None
+        # Cumulative wall-clock time per candidate-generation phase, printed
+        # by the caller when profile_time=True. Always accumulated (the
+        # timer calls themselves are negligible cost); only the printing is
+        # gated on the flag.
+        self._profile_totals = defaultdict(float)
 
         if seed is not None:
             random.seed(seed)
@@ -1061,7 +1074,7 @@ class DFALearner(BaseAutomataLearner):
         return dfa
 
 
-    def _propose_delete(self, dfa, state, data, labels, seen_signatures, beam_size):
+    def _propose_delete(self, dfa, state, data, labels, seen_signatures, beam_size, sig_cache=None):
         """
         Propose new DFAs by deleting states from the given DFA.
         
@@ -1085,11 +1098,24 @@ class DFALearner(BaseAutomataLearner):
         """
         import gc
 
-        state_ids = [s.state_id for s in list(dfa.states)]
-        if len(state_ids) <= 1:
+        states = list(dfa.states)
+        if len(states) <= 1:
             return []
 
-        tasks = [(dfa, state_id) for state_id in state_ids]
+        # Mirror the validity check _delete_candidate_from_state performs
+        # after copying, so we skip pickling/copying the DFA for states that
+        # are always rejected (the initial state, or the sole remaining
+        # accepting state). Does not change which candidates are produced,
+        # since these tasks would return None regardless.
+        num_accepting = sum(s.is_accepting for s in states)
+        deletable_state_ids = [
+            s.state_id for s in states
+            if s is not dfa.initial_state and not (s.is_accepting and num_accepting <= 1)
+        ]
+        if not deletable_state_ids:
+            return []
+
+        tasks = [(dfa, state_id) for state_id in deletable_state_ids]
         try:
             candidates = list(self._get_process_pool().map(_delete_candidate_from_state, tasks))
         except Exception:
@@ -1104,6 +1130,8 @@ class DFALearner(BaseAutomataLearner):
                 sig = serialize_dfa(new_dfa)
             except Exception:
                 sig = id(new_dfa)
+            if sig_cache is not None:
+                sig_cache[id(new_dfa)] = sig
             if sig in seen_signatures:
                 continue
             seen_signatures.add(sig)
@@ -1174,7 +1202,7 @@ class DFALearner(BaseAutomataLearner):
         return merge_pairs, state_label_dist
     
 
-    def _propose_merge(self, dfa, state, data, labels, seen_signatures, beam_size):
+    def _propose_merge(self, dfa, state, data, labels, seen_signatures, beam_size, sig_cache=None):
         """
         Propose new DFAs by merging pairs of states in the given DFA.
         Uses intelligent scoring to prioritize high-impact merges.
@@ -1201,7 +1229,11 @@ class DFALearner(BaseAutomataLearner):
 
         new_dfas = []
 
-        feasible_pairs, state_label_dist = self.collect_merge_pairs_simple(dfa, data, labels, max_pairs=20)
+        # Floors at the previous hard-coded 20 so beam_size=1 (the default in
+        # every existing experiment config) reproduces identical candidates;
+        # larger beam_size scales up merge-pair diversity.
+        max_pairs = max(20, int(beam_size))
+        feasible_pairs, state_label_dist = self.collect_merge_pairs_simple(dfa, data, labels, max_pairs=max_pairs)
         if not feasible_pairs:
             return new_dfas
 
@@ -1210,7 +1242,19 @@ class DFALearner(BaseAutomataLearner):
             for state_id, dist in state_label_dist.items()
         }
 
-        tasks = [(dfa, s1.state_id, s2.state_id, majority_labels) for s1, s2 in feasible_pairs]
+        # Mirror the validity check _merge_candidate_from_pair performs after
+        # copying (neither state may be the initial state), so we skip
+        # pickling/copying the DFA for pairs that are always rejected. The
+        # top-20 ranking above is unchanged; this only drops guaranteed-None
+        # tasks from the already-selected pair list.
+        mergeable_pairs = [
+            (s1, s2) for s1, s2 in feasible_pairs
+            if s1 is not dfa.initial_state and s2 is not dfa.initial_state
+        ]
+        if not mergeable_pairs:
+            return new_dfas
+
+        tasks = [(dfa, s1.state_id, s2.state_id, majority_labels) for s1, s2 in mergeable_pairs]
         try:
             candidates = list(self._get_process_pool().map(_merge_candidate_from_pair, tasks))
         except Exception:
@@ -1224,6 +1268,8 @@ class DFALearner(BaseAutomataLearner):
                 sig = serialize_dfa(new_dfa)
             except Exception:
                 sig = id(new_dfa)
+            if sig_cache is not None:
+                sig_cache[id(new_dfa)] = sig
             if sig in seen_signatures:
                 continue
             seen_signatures.add(sig)
@@ -1330,109 +1376,62 @@ class DFALearner(BaseAutomataLearner):
             - partially traced paths:
                 * if collect_missing=True, record first missing transition
                 * otherwise ignore for CXP
+
+            Each path's CXP computation (including the ExplainLanguage /
+            SAT-solver call in explain_word) is independent of every other
+            path, so this is farmed out to the process pool via the
+            module-level _collect_cxp_records_for_path worker, which performs
+            the identical per-path logic. Same inputs -> same cxp_records /
+            missing_transition_records, just computed concurrently instead of
+            in a Python for-loop.
+
+            Each task is bounded by _CXP_EXPLAIN_TIMEOUT_SECONDS: a path whose
+            explain_word() call runs longer than that contributes no CXP
+            record for that path (same effect as the existing "explain_word
+            raised / returned malformed data" fallback below), instead of
+            letting one pathological path stall the whole DELTA round.
             """
+            if not paths:
+                return [], []
+
+            tasks = [(dfa, path, alphabet_map, mata_path, collect_missing) for path in paths]
             cxp_records = []
             missing_transition_records = []
 
-            full_count = 0
-            partial_count = 0
-            explain_fail_count = 0
+            try:
+                pool = self._get_process_pool()
+                futures = [pool.submit(_collect_cxp_records_for_path, task) for task in tasks]
+            except Exception:
+                self._process_pool = None
+                results = [_collect_cxp_records_for_path(task) for task in tasks]
+                for path_cxp_records, path_missing_records in results:
+                    cxp_records.extend(path_cxp_records)
+                    missing_transition_records.extend(path_missing_records)
+                return cxp_records, missing_transition_records
 
-            for path_idx, path in enumerate(paths):
-                current = dfa.initial_state
-                path_edges = []
-                fully_traced = True
-                missing_symbol = None
-                missing_src_state_id = None
-
-                for sym in path:
-                    next_state = current.transitions.get(sym)
-                    if next_state is None:
-                        fully_traced = False
-                        missing_symbol = sym
-                        missing_src_state_id = current.state_id
-                        break
-                    path_edges.append((current.state_id, sym, next_state.state_id))
-                    current = next_state
-
-                if not path_edges and not fully_traced:
-                    partial_count += 1
-                    if collect_missing and missing_src_state_id is not None and missing_symbol is not None:
-                        missing_transition_records.append((missing_src_state_id, missing_symbol))
-                    continue
-
-                if fully_traced:
-                    full_count += 1
-                else:
-                    partial_count += 1
-                    if collect_missing and missing_src_state_id is not None and missing_symbol is not None:
-                        missing_transition_records.append((missing_src_state_id, missing_symbol))
-
-                # only fully traced paths can use ExplainLanguage
-                if not fully_traced:
-                    continue
-
-                if not path_edges:
-                    continue
-
-                filtered_path_edges = []
-                encoded_word = []
-                for edge in path_edges:
-                    _, sym, _ = edge
-                    if sym not in alphabet_map:
-                        filtered_path_edges = []
-                        encoded_word = []
-                        break
-                    filtered_path_edges.append(edge)
-                    encoded_word.append(alphabet_map[sym])
-
-                if not encoded_word:
-                    continue
-
-                if not EXPLAIN_LANGUAGE_AVAILABLE or ExplainLanguage is None:
-                    explain_fail_count += 1
-                    continue
-
+            had_timeout = False
+            for fut in futures:
                 try:
-                    engine = ExplainLanguage()
-                    result_data = engine.explain_word(
-                        mata_path,
-                        from_mata=True,
-                        word=encoded_word,
-                        ascii=encoded_word,
-                        target_axp=False,
-                        bootstrap_cxp_size_1=False,
-                        print_exp=False,
-                    )
-                except Exception as e:
-                    explain_fail_count += 1
+                    path_cxp_records, path_missing_records = fut.result(timeout=_CXP_EXPLAIN_TIMEOUT_SECONDS)
+                except FutureTimeoutError:
+                    had_timeout = True
                     continue
-
-                if not isinstance(result_data, dict):
-                    explain_fail_count += 1
+                except Exception:
                     continue
+                cxp_records.extend(path_cxp_records)
+                missing_transition_records.extend(path_missing_records)
 
-                cxp_raw = result_data.get("cxps", []) or []
-                valid_cxps = []
-
-                for cxp in cxp_raw:
-                    try:
-                        cxp_tuple = tuple(int(pos) for pos in cxp)
-                    except Exception:
-                        continue
-                    if cxp_tuple:
-                        valid_cxps.append(cxp_tuple)
-
-                # keep each path's shortest CXP(s)
-                if valid_cxps:
-                    min_len = min(len(c) for c in valid_cxps)
-                    shortest_cxps = [c for c in valid_cxps if len(c) == min_len]
-
-                    for cxp_tuple in shortest_cxps:
-                        cxp_records.append({
-                            "cxp": cxp_tuple,
-                            "path_edges": filtered_path_edges,
-                        })
+            if had_timeout:
+                # A worker process is still busy running the timed-out task
+                # (ProcessPoolExecutor cannot forcibly kill an in-progress
+                # task). Discard the pool so subsequent calls get a fresh one
+                # instead of silently losing that worker slot for the rest
+                # of the search.
+                try:
+                    pool.shutdown(wait=False, cancel_futures=True)
+                except Exception:
+                    pass
+                self._process_pool = None
 
             return cxp_records, missing_transition_records
 
@@ -1541,28 +1540,19 @@ class DFALearner(BaseAutomataLearner):
         # Sort by score (descending)
         all_scored_edges.sort(key=lambda x: (-x[0], -x[1], x[2], str(x[3][0]), str(x[3][1])))
         
-        # Return only the top-1 best edge
-        if all_scored_edges:
-            score, bfreq, cusage, best_edge, edge_type = all_scored_edges[0]
+        # Return the top-k best edges (k=top_k, floored at the previous
+        # hard-coded 1 so beam_size=1 reproduces the old single-edge behavior).
+        fr_rewire_edges = []
+        fa_rewire_edges = []
+        missing_edges = []
+        n_top = max(1, int(top_k))
+        for score, bfreq, cusage, best_edge, edge_type in all_scored_edges[:n_top]:
             if edge_type == "FR_rewire":
-                fr_rewire_edges = [best_edge]
-                fa_rewire_edges = []
-                missing_edges = []
+                fr_rewire_edges.append(best_edge)
             elif edge_type == "FA_rewire":
-                fr_rewire_edges = []
-                fa_rewire_edges = [best_edge]
-                missing_edges = []
+                fa_rewire_edges.append(best_edge)
             else:  # missing
-                fr_rewire_edges = []
-                fa_rewire_edges = []
-                missing_edges = [best_edge]
-            
-            if all_scored_edges:
-                pass
-        else:
-            fr_rewire_edges = []
-            fa_rewire_edges = []
-            missing_edges = []
+                missing_edges.append(best_edge)
 
         return {
             "fr_rewire_edges": fr_rewire_edges,
@@ -1571,7 +1561,7 @@ class DFALearner(BaseAutomataLearner):
         }
 
 
-    def _propose_delta(self, dfa, state, data, labels, seen_signatures, batch_size=32, top_k=1):
+    def _propose_delta(self, dfa, state, data, labels, seen_signatures, batch_size=32, top_k=1, sig_cache=None):
         """
         Propose new DFAs by separately repairing:
 
@@ -1600,6 +1590,7 @@ class DFALearner(BaseAutomataLearner):
         # export DFA to mata for CXP
         _, alphabet_map, _, _ = dfa_to_mata(dfa, self.mata_path)
 
+        cxp_start = time.perf_counter()
         delta_result = self._aggregate_cxp_analysis(
             dfa,
             false_reject_paths,
@@ -1612,6 +1603,7 @@ class DFALearner(BaseAutomataLearner):
             batch_size=batch_size,
             top_k=top_k,
         )
+        self._profile_totals["delta_cxp_analysis"] += time.perf_counter() - cxp_start
 
         if not delta_result:
             return new_dfas
@@ -1651,6 +1643,8 @@ class DFALearner(BaseAutomataLearner):
                         sig = serialize_dfa(new_dfa)
                     except Exception:
                         sig = id(new_dfa)
+                    if sig_cache is not None:
+                        sig_cache[id(new_dfa)] = sig
                     if sig in seen_signatures:
                         continue
                     seen_signatures.add(sig)
@@ -1721,22 +1715,36 @@ class DFALearner(BaseAutomataLearner):
 
         seen_signatures = set()
         new_dfas = []
+        # Populated by _propose_delete/_propose_merge/_propose_delta as they
+        # compute each candidate's signature for their own seen_signatures
+        # dedup, so the final unique_dfas pass below doesn't need to
+        # re-serialize the same DFA a second time.
+        sig_cache: dict = {}
 
         for dfa in previous_best:
             if iteration % 2 == 0:
                 # Even iterations: DELETE and MERGE
-                delete_candidates = self._propose_delete(dfa, state, data, labels, seen_signatures, beam_size)
-                merge_candidates = self._propose_merge(dfa, state, data, labels, seen_signatures, beam_size)
+                t0 = time.perf_counter()
+                delete_candidates = self._propose_delete(dfa, state, data, labels, seen_signatures, beam_size, sig_cache=sig_cache)
+                self._profile_totals["propose_delete"] += time.perf_counter() - t0
+                t0 = time.perf_counter()
+                merge_candidates = self._propose_merge(dfa, state, data, labels, seen_signatures, beam_size, sig_cache=sig_cache)
+                self._profile_totals["propose_merge"] += time.perf_counter() - t0
                 new_dfas.extend(delete_candidates)
                 new_dfas.extend(merge_candidates)
             else:
                 # Odd iterations: DELTA
-                new_dfas.extend(self._propose_delta(dfa, state, data, labels, seen_signatures, batch_size))
-        
+                t0 = time.perf_counter()
+                delta_candidates = self._propose_delta(dfa, state, data, labels, seen_signatures, batch_size, top_k=max(1, int(beam_size)), sig_cache=sig_cache)
+                self._profile_totals["propose_delta_total"] += time.perf_counter() - t0
+                new_dfas.extend(delta_candidates)
+
         unique_dfas = []
         seen = set()
         for dfa in new_dfas:
-            sig = serialize_dfa(dfa)
+            sig = sig_cache.get(id(dfa))
+            if sig is None:
+                sig = serialize_dfa(dfa)
             if sig not in seen:
                 seen.add(sig)
                 unique_dfas.append(dfa)

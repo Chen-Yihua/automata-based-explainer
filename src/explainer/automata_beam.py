@@ -163,6 +163,18 @@ class AutomataBeamSearch:
         # Controlled by the unified public parameters: parallel and n_jobs.
         self.parallel = bool(kwargs.get("parallel", False))
         self.n_jobs = max(1, int(kwargs.get("n_jobs", 4)))
+        # Optional lightweight profiling: accumulates wall-clock time per
+        # search phase (KL-LUCB sampling/evaluation vs candidate proposal),
+        # printed as a single summary line at the end of automata_beam() when
+        # profile_time=True. Always accumulated (negligible timer overhead);
+        # only the printing is gated on the flag.
+        self.profile_time = bool(kwargs.get("profile_time", False))
+        self._profile_totals: Dict[str, float] = defaultdict(float)
+        # Reused across draw_automata_samples_parallel calls (KL-LUCB may
+        # call this many times per beam iteration, once per critical-arm
+        # sampling round) to avoid paying process-pool startup cost every
+        # time. Lazily created on first use; see _get_process_pool().
+        self._process_pool = None
 
         self.learner = None
         self.automatas: List[Any] = []
@@ -170,6 +182,20 @@ class AutomataBeamSearch:
         self.validation_labels = np.array([], dtype=np.float64)
         self.iteration = 0
         self.state: dict = {}
+
+    def _get_process_pool(self):
+        """Return a lazily-created, reusable ProcessPoolExecutor sized to n_jobs."""
+        if self._process_pool is None:
+            self._process_pool = ProcessPoolExecutor(max_workers=max(1, int(self.n_jobs)))
+        return self._process_pool
+
+    def __del__(self):
+        pool = getattr(self, "_process_pool", None)
+        if pool is not None:
+            try:
+                pool.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # State and sampling
@@ -212,8 +238,12 @@ class AutomataBeamSearch:
         """Draw samples once per automaton and update search statistics."""
         sample_stats = []
         for automaton in automata_list:
+            t0 = time.perf_counter()
             raw_data, labels = self.sample_fcn(num_samples=batch_size)
+            self._profile_totals["sample_predict"] += time.perf_counter() - t0
+            t0 = time.perf_counter()
             sample_stats.append(self.update_automata_state(labels, raw_data, automaton))
+            self._profile_totals["accept_check"] += time.perf_counter() - t0
 
         if not sample_stats:
             return (), (), (), ()
@@ -249,11 +279,13 @@ class AutomataBeamSearch:
         max_workers = min(n_jobs, len(automata_list))
         sampled_batches = []
 
+        sample_start = time.perf_counter()
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(self.sample_fcn, num_samples=batch_size) for _ in automata_list]
             for fut in futures:
                 raw_data, labels = fut.result()
                 sampled_batches.append((raw_data, labels))
+        self._profile_totals["sample_predict"] += time.perf_counter() - sample_start
 
         worker_results = []
         score_payloads = [
@@ -261,14 +293,16 @@ class AutomataBeamSearch:
             for automaton, (raw_data, labels) in zip(automata_list, sampled_batches)
         ]
 
+        accept_start = time.perf_counter()
         try:
-            with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                futures = [executor.submit(_score_candidate_acceptance, payload) for payload in score_payloads]
-                for automaton, (raw_data, labels), fut in zip(automata_list, sampled_batches, futures):
-                    worker_results.append((automaton, raw_data, labels, fut.result()))
+            pool = self._get_process_pool()
+            futures = [pool.submit(_score_candidate_acceptance, payload) for payload in score_payloads]
+            for automaton, (raw_data, labels), fut in zip(automata_list, sampled_batches, futures):
+                worker_results.append((automaton, raw_data, labels, fut.result()))
         except Exception:
             # Fallback keeps the method usable when a candidate or automaton
             # cannot be pickled cleanly for process-based scoring.
+            self._process_pool = None
             for automaton, (raw_data, labels) in zip(automata_list, sampled_batches):
                 stats = compute_acceptance_stats(
                     automaton=automaton,
@@ -277,6 +311,7 @@ class AutomataBeamSearch:
                     accept_fn=check_dfa_path_accepted,
                 )
                 worker_results.append((automaton, raw_data, labels, stats))
+        self._profile_totals["accept_check"] += time.perf_counter() - accept_start
 
         sample_stats = []
         for automaton, raw_data, labels, stats in worker_results:
@@ -399,7 +434,7 @@ class AutomataBeamSearch:
         top_n: int,
         verbose: bool = False,
         verbose_every: int = 1,
-        max_rounds: int = 500,
+        max_rounds: int = 3000,
     ) -> np.ndarray:
         """Run KL-LUCB to identify the top automata by agreement."""
         n_features = len(automata_list)
@@ -540,6 +575,7 @@ class AutomataBeamSearch:
         output_dir: str,
         save_graphs: bool,
         collect_error_examples: bool,
+        final_training_agreement: Optional[float] = None,
     ) -> dict:
         initial_metadata = self.get_automata_metadata(
             origin_automaton,
@@ -568,6 +604,15 @@ class AutomataBeamSearch:
             is_final=True,
             collect_error_examples=collect_error_examples,
         )
+        if final_training_agreement is not None:
+            # Report the training agreement the candidate was actually selected
+            # with (its all_history snapshot), instead of get_automata_metadata's
+            # live re-read of self.state, which may have drifted since selection
+            # if this automaton was resampled again in later beam iterations
+            # (e.g. reused as a DELTA parent). Validation agreement, states, and
+            # false_accept/false_reject are unaffected and still come from the
+            # live metadata above.
+            final_metadata["training_agreement"] = float(final_training_agreement)
 
         training_agreements = [initial_metadata["training_agreement"], final_metadata["training_agreement"]]
         validation_agreements = [initial_metadata["validation_agreement"], final_metadata["validation_agreement"]]
@@ -617,7 +662,7 @@ class AutomataBeamSearch:
         max_evaluations: Optional[int] = None,
         prebuilt_init=None,
         use_kllucb: bool = True,
-        init_state_range: Tuple[int, int] = (30, 65),
+        init_state_range: Tuple[int, int] = (28, 65),
         max_init_attempts: int = 20,
         save_graphs: bool = True,
         save_plots: bool = True,
@@ -685,6 +730,11 @@ class AutomataBeamSearch:
                     print(f"[Init DFA] Attempt {attempt}: {candidate_states} states, resampling...")
 
             if origin_automaton is None:
+                attempted_states = [len(candidate.states) for candidate in discarded_candidates]
+                print(
+                    f"  [ERROR] Initial DFA construction failed after {max_init_attempts} attempts: "
+                    f"state counts tried={attempted_states}, required range=[{min_states}, {max_states}]"
+                )
                 return {
                     "automata": [None, None],
                     "states": [None, None],
@@ -745,19 +795,29 @@ class AutomataBeamSearch:
         else:
             lb = mean
 
-        if lb > threshold and is_valid_dfa(self.automatas[0]):
-            return self._make_result(
-                origin_automaton,
-                self.automatas[0],
-                success=True,
-                reason="Initial automaton already meets agreement threshold.",
-                budget_used=1,
-                init_automaton_time=init_automaton_time,
-                batch_size=batch_size,
-                output_dir=output_dir,
-                save_graphs=save_graphs,
-                collect_error_examples=collect_error_examples,
-            )
+        # Disabled: per the paper's design (Stop Criteria), the search always
+        # runs the full DELETE/MERGE/DELTA refinement loop down to the
+        # smallest reachable automaton -- there is no "initial automaton
+        # already good enough, skip refinement" shortcut. Verified against
+        # the paper's own SecureHandshake tau=0.8 numbers (batch_size=1000,
+        # delta=0.01, initial training_agreement=0.8655): dlow_bernoulli
+        # already returns lb=0.8305 > 0.8 from the very first sample batch,
+        # so this check -- if active -- would have returned the unrefined
+        # 37-state automaton immediately, contradicting the paper's reported
+        # 37->5 state result. Keep disabled.
+        # if lb > threshold and is_valid_dfa(self.automatas[0]):
+        #     return self._make_result(
+        #         origin_automaton,
+        #         self.automatas[0],
+        #         success=True,
+        #         reason="Initial automaton already meets agreement threshold.",
+        #         budget_used=1,
+        #         init_automaton_time=init_automaton_time,
+        #         batch_size=batch_size,
+        #         output_dir=output_dir,
+        #         save_graphs=save_graphs,
+        #         collect_error_examples=collect_error_examples,
+        #     )
 
         best_of_size: Dict[int, List[Any]] = {}
         all_history: List[dict] = []
@@ -771,6 +831,7 @@ class AutomataBeamSearch:
 
             op_label = self._iteration_op_label(self.iteration)
 
+            propose_start = time.perf_counter()
             candidates = self.learner.propose_automata(
                 self.automatas,
                 self.state,
@@ -780,6 +841,7 @@ class AutomataBeamSearch:
                 beam_size,
                 batch_size,
             )
+            self._profile_totals["propose_automata"] += time.perf_counter() - propose_start
 
             if not candidates:
                 print("[Beam] No candidates proposed. Stopping.")
@@ -813,6 +875,7 @@ class AutomataBeamSearch:
                 f"{budget_text}"
             )
 
+            kllucb_start = time.perf_counter()
             stats = self.get_init_stats(candidates)
 
             if use_kllucb:
@@ -873,6 +936,7 @@ class AutomataBeamSearch:
             else:
                 lbs = np.zeros_like(selected_agreements, dtype=float)
                 ubs = np.ones_like(selected_agreements, dtype=float)
+            self._profile_totals["kllucb_eval"] += time.perf_counter() - kllucb_start
 
             for automaton, agreement, lower_bound in zip(beam, selected_agreements, lbs):
                 if not is_valid_dfa(automaton):
@@ -903,6 +967,20 @@ class AutomataBeamSearch:
             )
             self.iteration += 1
 
+        if self.profile_time:
+            learner_totals = getattr(self.learner, "_profile_totals", {})
+            parts = [f"propose_automata={self._profile_totals['propose_automata']:.2f}s"]
+            for key in ("propose_delete", "propose_merge", "propose_delta_total", "delta_cxp_analysis"):
+                if key in learner_totals:
+                    parts.append(f"{key}={learner_totals[key]:.2f}s")
+            parts.append(f"kllucb_eval={self._profile_totals['kllucb_eval']:.2f}s")
+            print("[Profile] " + ", ".join(parts))
+            print(
+                f"[Profile]   kllucb_eval breakdown: "
+                f"sample_predict={self._profile_totals['sample_predict']:.2f}s, "
+                f"accept_check={self._profile_totals['accept_check']:.2f}s"
+            )
+
         if save_plots and iteration_stats:
             try:
                 plot_beam_stats(iteration_stats, beam_size, output_dir=output_dir)
@@ -925,6 +1003,7 @@ class AutomataBeamSearch:
                     output_dir=output_dir,
                     save_graphs=save_graphs,
                     collect_error_examples=collect_error_examples,
+                    final_training_agreement=best["training_agreement"],
                 )
 
             best = max(all_history, key=lambda record: record["training_agreement"])
@@ -943,6 +1022,7 @@ class AutomataBeamSearch:
                 output_dir=output_dir,
                 save_graphs=save_graphs,
                 collect_error_examples=collect_error_examples,
+                final_training_agreement=best["training_agreement"],
             )
 
         return self._make_result(

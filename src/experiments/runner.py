@@ -82,6 +82,7 @@ def run_beam(
         sample_cache_size=cfg.get("sample_cache_size", 1000),
         parallel=cfg.get("parallel", True),
         n_jobs=cfg.get("n_jobs", 4),
+        profile_time=cfg.get("profile_time", False),
     )
     result = search.automata_beam(
         data_type=cfg.get("data_type", "Tabular"),
