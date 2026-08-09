@@ -28,6 +28,10 @@ tests/
 examples/**/*.log
 examples/**/*.txt
 
+# Standalone log files from example scripts
+examples/**/*.log
+examples/**/*.txt
+
 # OS
 .DS_Store
 Thumbs.db
