@@ -109,10 +109,17 @@ def run_beam(
 def build_shared_init(
     beam_search: AutomataBeamSearch,
     beam_result: dict,
-    sampler: DFASampler,
     cfg: dict,
 ) -> SharedInit:
-    """Build the shared object required by SA / GA / PSO."""
+    """Build the shared object required by SA / GA / PSO.
+
+    training_data/training_labels are the exact first batch of samples Beam
+    Search drew to evaluate the initial (origin) automaton, before KL-LUCB's
+    adaptive sampling grows the pool further. AutomataBeamSearch.state["data"]
+    / ["labels"] accumulate every draw made during the whole search in order,
+    so the first `batch_size` entries are precisely that pre-growth batch.
+    SA/GA/PSO then hold this batch fixed for every candidate they evaluate.
+    """
     automata_pair = beam_result.get("automata") or []
     if automata_pair and automata_pair[0] is not None:
         initial_dfa = automata_pair[0].copy()
@@ -121,10 +128,9 @@ def build_shared_init(
     else:
         raise ValueError("Beam search did not produce an initial DFA.")
 
-    training_data, training_labels = sampler(
-        num_samples=cfg.get("baseline_train_samples", cfg.get("batch_size", 100)),
-        compute_labels=True,
-    )
+    batch_size = cfg.get("batch_size", 100)
+    training_data = list(beam_search.state["data"][:batch_size])
+    training_labels = np.asarray(beam_search.state["labels"][:batch_size])
 
     return SharedInit(
         initial_dfa=initial_dfa,
@@ -314,7 +320,7 @@ def run_search_suite(
         "raw": beam_raw,
     }
 
-    shared = build_shared_init(beam_search, beam_raw, sampler, cfg)
+    shared = build_shared_init(beam_search, beam_raw, cfg)
     if cfg.get("save_shared_init", True):
         try:
             save_shared_init(shared, output_dir)

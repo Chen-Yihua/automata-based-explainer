@@ -397,79 +397,172 @@ class DFASampler:
         preds = np.asarray(self._predict_with_cache(samples))
         return np.asarray(preds == self.instance_label, dtype=int)
     
-
     def perturbation(self, num_samples: int):
         """
-        DFASampler perturbation - uses shared DFALearner._generate_perturbed_samples
-        
-        Generates unique perturbed samples with intelligent deduplication.
-        
+        Generate perturbed samples within Levenshtein edit distance <= edit_distance.
+
+        Parameters
         ----------
         num_samples : int
-            Target number of unique samples to generate
-            
+            Number of perturbed samples to generate.
+
         Returns
         -------
         tuple
-            (local_paths, d_samples) - both are lists of unique perturbed sequences
+            (local_paths, d_samples)
         """
+
         symbols = self.alphabet if self.alphabet else list(set(self.instance))
         if not symbols:
-            raise ValueError("DFASampler requires a non-empty alphabet or non-empty instance.")
-        
-        edit_distance = self.edit_distance
-        local_paths_set = set()  # Use set for automatic deduplication
-        no_progress_count = 0  # Track consecutive failures
-        max_no_progress = 50  # If no new samples in 100 tries, give up
-        trials = 0
+            raise ValueError(
+                "DFASampler requires a non-empty alphabet or non-empty instance."
+            )
+
+        local_paths_set = set()
+
         max_trials = 10000
-        
-        while len(local_paths_set) < int(num_samples) and trials < max_trials:
+        no_progress_count = 0
+        max_no_progress = 50
+
+        trials = 0
+
+        while len(local_paths_set) < num_samples and trials < max_trials:
+
             trials += 1
-            
+
             new_instance = list(self.instance)
-            op = random.choice(["replace", "insert", "delete"])
-            max_edit = min(edit_distance, len(new_instance))
-            edit_dist = random.randint(0, max_edit) if max_edit > 0 else 0
 
-            if op == "replace":
-                if len(new_instance) > 0 and edit_dist > 0:
-                    replace_indices = random.sample(range(len(new_instance)), min(edit_dist, len(new_instance)))
-                    for idx in replace_indices:
-                        different_symbols = [s for s in symbols if s != new_instance[idx]]
-                        if different_symbols:
-                            new_instance[idx] = random.choice(different_symbols)
+            # Total edit operations for this sample
+            remaining_edits = random.randint(0, self.edit_distance)
 
-            elif op == "insert":
-                for _ in range(edit_dist):
-                    insert_idx = random.randint(0, len(new_instance))
-                    new_instance.insert(insert_idx, random.choice(symbols))
+            while remaining_edits > 0:
 
-            elif op == "delete":
-                if len(new_instance) > 0 and edit_dist > 0:
-                    delete_count = min(edit_dist, len(new_instance))
-                    delete_indices = sorted(random.sample(range(len(new_instance)), delete_count), reverse=True)
-                    for idx in delete_indices:
-                        del new_instance[idx]
+                possible_ops = ["replace", "insert"]
 
-            # Convert to hashable tuple for deduplication
-            hashable_instance = tuple(new_instance)
-            
-            # Track progress for early exit
-            prev_size = len(local_paths_set)
-            local_paths_set.add(hashable_instance)
-            
-            if len(local_paths_set) == prev_size:
+                if len(new_instance) > 0:
+                    possible_ops.append("delete")
+
+                op = random.choice(possible_ops)
+
+                if op == "replace":
+
+                    idx = random.randrange(len(new_instance))
+
+                    different_symbols = [
+                        s for s in symbols
+                        if s != new_instance[idx]
+                    ]
+
+                    if different_symbols:
+                        new_instance[idx] = random.choice(different_symbols)
+
+                elif op == "insert":
+
+                    idx = random.randint(0, len(new_instance))
+
+                    new_instance.insert(
+                        idx,
+                        random.choice(symbols)
+                    )
+
+                elif op == "delete":
+
+                    idx = random.randrange(len(new_instance))
+                    del new_instance[idx]
+
+                remaining_edits -= 1
+
+            hashable = tuple(new_instance)
+
+            before = len(local_paths_set)
+
+            local_paths_set.add(hashable)
+
+            if len(local_paths_set) == before:
                 no_progress_count += 1
             else:
                 no_progress_count = 0
-            
-            # Early exit if no progress for too long
+
             if no_progress_count > max_no_progress:
                 break
 
         local_paths = [list(seq) for seq in local_paths_set]
+
         return local_paths, local_paths
+
+
+    # def perturbation(self, num_samples: int):
+    #     """
+    #     DFASampler perturbation - uses shared DFALearner._generate_perturbed_samples
+        
+    #     Generates unique perturbed samples with intelligent deduplication.
+        
+    #     ----------
+    #     num_samples : int
+    #         Target number of unique samples to generate
+            
+    #     Returns
+    #     -------
+    #     tuple
+    #         (local_paths, d_samples) - both are lists of unique perturbed sequences
+    #     """
+    #     symbols = self.alphabet if self.alphabet else list(set(self.instance))
+    #     if not symbols:
+    #         raise ValueError("DFASampler requires a non-empty alphabet or non-empty instance.")
+        
+    #     edit_distance = self.edit_distance
+    #     local_paths_set = set()  # Use set for automatic deduplication
+    #     no_progress_count = 0  # Track consecutive failures
+    #     max_no_progress = 50  # If no new samples in 100 tries, give up
+    #     trials = 0
+    #     max_trials = 10000
+        
+    #     while len(local_paths_set) < int(num_samples) and trials < max_trials:
+    #         trials += 1
+            
+    #         new_instance = list(self.instance)
+    #         op = random.choice(["replace", "insert", "delete"])
+    #         max_edit = min(edit_distance, len(new_instance))
+    #         edit_dist = random.randint(0, max_edit) if max_edit > 0 else 0
+
+    #         if op == "replace":
+    #             if len(new_instance) > 0 and edit_dist > 0:
+    #                 replace_indices = random.sample(range(len(new_instance)), min(edit_dist, len(new_instance)))
+    #                 for idx in replace_indices:
+    #                     different_symbols = [s for s in symbols if s != new_instance[idx]]
+    #                     if different_symbols:
+    #                         new_instance[idx] = random.choice(different_symbols)
+
+    #         elif op == "insert":
+    #             for _ in range(edit_dist):
+    #                 insert_idx = random.randint(0, len(new_instance))
+    #                 new_instance.insert(insert_idx, random.choice(symbols))
+
+    #         elif op == "delete":
+    #             if len(new_instance) > 0 and edit_dist > 0:
+    #                 delete_count = min(edit_dist, len(new_instance))
+    #                 delete_indices = sorted(random.sample(range(len(new_instance)), delete_count), reverse=True)
+    #                 for idx in delete_indices:
+    #                     del new_instance[idx]
+
+    #         # Convert to hashable tuple for deduplication
+    #         hashable_instance = tuple(new_instance)
+            
+    #         # Track progress for early exit
+    #         prev_size = len(local_paths_set)
+    #         local_paths_set.add(hashable_instance)
+            
+    #         if len(local_paths_set) == prev_size:
+    #             no_progress_count += 1
+    #         else:
+    #             no_progress_count = 0
+            
+    #         # Early exit if no progress for too long
+    #         if no_progress_count > max_no_progress:
+    #             break
+
+    #     local_paths = [list(seq) for seq in local_paths_set]
+    #     return local_paths, local_paths
         
         
     def __call__(self, num_samples, compute_labels=True):
