@@ -1,0 +1,98 @@
+\definecolor{beamsearchColor}{RGB}{42,120,214}
+\definecolor{saColor}{RGB}{235,104,52}
+\definecolor{gaColor}{RGB}{27,175,122}
+\definecolor{psoColor}{RGB}{237,161,0}
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[
+    group style={group size=1 by 4, vertical sep=1.0cm},
+    width=0.94\textwidth,
+    height=5.2cm,
+    xmin=0.5,
+    xmax=6.5,
+    xtick={1,2,3,4,5,6},
+    xticklabels={Handshake,Document,Navigation,MNIST,ECG5000,Wafer},
+    enlarge x limits=false,
+    ymajorgrids=true,
+    grid style={gray!20},
+    axis line style={gray!65},
+    tick style={gray!65},
+    title style={at={(0,1)}, anchor=south west, font=\bfseries},
+]
+
+\nextgroupplot[
+    title={(a) Final DFA size},
+    ylabel={Final states},
+    ymin=0,
+    ymax=45,
+    xticklabels=\empty,
+    ybar,
+    bar width=5.5pt,
+    legend style={
+        at={(0.5,1.35)}, anchor=south, legend columns=4,
+        draw=none, font=\small, column sep=8pt,
+    },
+]
+\addplot[fill=beamsearchColor, draw=beamsearchColor] coordinates {(0.82,4) (1.82,3) (2.82,4) (3.82,9) (4.82,9) (5.82,33)};
+\addlegendentry{Beam}
+\addplot[fill=saColor, draw=saColor] coordinates {(0.94,4) (1.94,15) (2.94,4) (3.94,12) (4.94,23) (5.94,35)};
+\addlegendentry{SA}
+\addplot[fill=gaColor, draw=gaColor] coordinates {(1.06,4) (2.06,3) (3.06,11) (4.06,10) (5.06,14) (6.06,35)};
+\addlegendentry{GA}
+\addplot[fill=psoColor, draw=psoColor] coordinates {(1.18,4) (2.18,3) (3.18,4) (4.18,12) (5.18,6) (6.18,36)};
+\addlegendentry{PSO}
+
+\nextgroupplot[
+    title={(b) Training agreement},
+    ylabel={Agreement},
+    ymin=0.75,
+    ymax=0.95,
+    ytick distance=0.05,
+    yticklabel style={font=\scriptsize},
+    xticklabels=\empty,
+]
+\addplot[gray!65, dashed, line width=0.8pt, forget plot]
+    coordinates {(0.5,0.8) (6.5,0.8)};
+\addplot[only marks, mark=*, mark size=2.2pt, beamsearchColor] coordinates {(0.82,0.8661) (1.82,0.8686) (2.82,0.8556) (3.82,0.8192) (4.82,0.8040) (5.82,0.7684)};
+\addplot[only marks, mark=square*, mark size=2.0pt, saColor] coordinates {(0.94,0.8030) (1.94,0.8110) (2.94,0.8390) (3.94,0.8120) (4.94,0.8250) (5.94,0.7750)};
+\addplot[only marks, mark=triangle*, mark size=2.3pt, gaColor] coordinates {(1.06,0.8030) (2.06,0.8220) (3.06,0.8030) (4.06,0.7930) (5.06,0.8000) (6.06,0.7600)};
+\addplot[only marks, mark=diamond*, mark size=2.3pt, psoColor] coordinates {(1.18,0.8630) (2.18,0.8130) (3.18,0.8430) (4.18,0.8050) (5.18,0.8050) (6.18,0.7500)};
+\node[font=\tiny, text=gray!70, anchor=south east]
+    at (axis cs:6.42,0.8) {$\tau=0.8$};
+
+\nextgroupplot[
+    title={(c) Validation agreement},
+    ylabel={Agreement},
+    ymin=0.75,
+    ymax=1.02,
+    ytick distance=0.05,
+    yticklabel style={font=\scriptsize},
+    xticklabels=\empty,
+]
+\addplot[gray!65, dashed, line width=0.8pt, forget plot]
+    coordinates {(0.5,0.8) (6.5,0.8)};
+\addplot[only marks, mark=*, mark size=2.2pt, beamsearchColor] coordinates {(0.82,0.8690) (1.82,0.8810) (2.82,0.8640) (3.82,0.8280) (4.82,0.8020) (5.82,0.9780)};
+\addplot[only marks, mark=square*, mark size=2.0pt, saColor] coordinates {(0.94,0.8090) (1.94,0.8300) (2.94,0.8370) (3.94,0.8080) (4.94,0.8680) (5.94,0.9440)};
+\addplot[only marks, mark=triangle*, mark size=2.3pt, gaColor] coordinates {(1.06,0.8090) (2.06,0.8520) (3.06,0.8090) (4.06,0.7980) (5.06,0.8360) (6.06,1.0000)};
+\addplot[only marks, mark=diamond*, mark size=2.3pt, psoColor] coordinates {(1.18,0.8690) (2.18,0.8180) (3.18,0.8320) (4.18,0.8120) (5.18,0.8080) (6.18,1.0000)};
+\node[font=\tiny, text=gray!70, anchor=south east]
+    at (axis cs:6.42,0.8) {$\tau=0.8$};
+
+\nextgroupplot[
+    title={(d) Runtime},
+    ylabel={Runtime (s)},
+    ymode=log,
+    ymin=51,
+    ymax=1246,
+    x tick label style={rotate=15, anchor=east},
+]
+\addplot[only marks, mark=*, mark size=2.2pt, beamsearchColor] coordinates {(0.82,118.8) (1.82,83.1) (2.82,80.3) (3.82,359.9) (4.82,73.2) (5.82,364.0)};
+\addplot[only marks, mark=square*, mark size=2.0pt, saColor] coordinates {(0.94,182.5) (1.94,332.1) (2.94,146.3) (3.94,803.9) (4.94,222.0) (5.94,433.3)};
+\addplot[only marks, mark=triangle*, mark size=2.3pt, gaColor] coordinates {(1.06,176.4) (2.06,445.8) (3.06,283.0) (4.06,483.8) (5.06,155.4) (6.06,882.9)};
+\addplot[only marks, mark=diamond*, mark size=2.3pt, psoColor] coordinates {(1.18,355.2) (2.18,350.9) (3.18,294.8) (4.18,632.1) (5.18,214.4) (6.18,958.1)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Comparison between the proposed method (Beam) and baseline search algorithms (SA, GA, and PSO) across six tasks under batch size 1000 and $\tau=0.8$: (a) final DFA size, (b) training agreement, (c) validation agreement, and (d) runtime.}
+\label{fig:comparison}
+\end{figure}
