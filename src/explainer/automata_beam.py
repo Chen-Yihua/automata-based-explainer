@@ -627,8 +627,6 @@ class AutomataBeamSearch:
             "final_training_agreement": training_agreements[-1],
             "initial_validation_agreement": validation_agreements[0],
             "final_validation_agreement": validation_agreements[-1],
-            "final_training_agreement": training_agreements[-1],
-            "final_validation_agreement": validation_agreements[-1],
             "success": success,
             "reason": reason,
             "budget_used": budget_used,
@@ -740,8 +738,6 @@ class AutomataBeamSearch:
                     "states": [None, None],
                     "training_agreements": [0.0, 0.0],
                     "validation_agreements": [0.0, 0.0],
-                    "training_agreements": [0.0, 0.0],
-                    "validation_agreements": [0.0, 0.0],
                     "success": False,
                     "reason": f"Initial automaton state count not in range [{min_states}, {max_states}]",
                     "budget_used": 0,
@@ -824,6 +820,12 @@ class AutomataBeamSearch:
         iteration_stats: List[dict] = []
         total_candidates_proposed = 0
 
+        # Algorithm 2 (KL-LUCB Guided Beam Search), lines 6-18: propose
+        # candidates from the current beam (Delete/Merge on even iterations,
+        # Delta on odd), score them with KL-LUCB, keep the top beam_size, and
+        # append every scored candidate to all_history for the final
+        # selection step below. Runs until the beam is down to 2 states, the
+        # evaluation budget is exhausted, or no candidates remain.
         while True:
             if max_evaluations is not None and total_candidates_proposed >= max_evaluations:
                 print(f"[Beam] Budget exhausted: {total_candidates_proposed} >= {max_evaluations}")
@@ -987,6 +989,16 @@ class AutomataBeamSearch:
             except Exception as exc:
                 print(f"  [WARNING] Could not save beam plot: {exc}")
 
+        # Algorithm 2, lines 19-28: final selection over the WHOLE search
+        # history (every candidate scored across all iterations, not just the
+        # last beam), matching arg min / arg max over states and agreement
+        # respectively -- ties are broken implicitly (first match in
+        # all_history's insertion order), which in practice never happens
+        # across our experiments. Among candidates with training_agreement
+        # >= threshold, return the one with the fewest states; if none
+        # qualify, fall back to the single highest-agreement candidate in
+        # the whole history (best-effort). This rule is load-bearing for
+        # every reported result and must not change.
         if all_history:
             qualified = [record for record in all_history if record["training_agreement"] >= threshold]
             if qualified:

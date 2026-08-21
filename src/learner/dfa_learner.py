@@ -143,6 +143,12 @@ def _collect_cxp_records_for_path(args):
 
 
 def _delete_candidate_from_state(args):
+    """Delete operator (paper Sec. 4.2): remove one non-initial state,
+    redirecting its incoming transitions to the targets of its own outgoing
+    transitions (self-loop if it has none for that symbol). Returns None if
+    the target is the initial state, is the last accepting state, or the
+    result would have no accepting state left -- these candidates are
+    dropped rather than proposed."""
     dfa, target_state_id = args
     try:
         target_state = next((state for state in dfa.states if state.state_id == target_state_id), None)
@@ -179,6 +185,12 @@ def _delete_candidate_from_state(args):
 
 
 def _merge_candidate_from_pair(args):
+    """Merge operator (paper Sec. 4.2): combine two non-initial states into
+    one, redirecting all transitions that pointed to state2 onto state1 and
+    reassigning state2's outgoing transitions onto state1. If the two states
+    disagree on accepting status, majority_labels (from sample-label voting)
+    decides the merged state's status. Returns None if either state is the
+    initial state or the merge would leave no accepting state."""
     dfa, state1_id, state2_id, majority_labels = args
     try:
         s1 = next((state for state in dfa.states if state.state_id == state1_id), None)
@@ -224,6 +236,12 @@ def _merge_candidate_from_pair(args):
 
 
 def _delta_candidate_from_edge(args):
+    """Delta operator (paper Sec. 4.2): rewire one transition (source_state,
+    symbol) to point at target_state instead of wherever it currently goes.
+    The (source, symbol, target) triple is chosen upstream from CXP-based
+    error-transition scoring (see propose_delta / _collect_cxp_records_for_path).
+    Returns None if the transition doesn't exist or the rewired DFA would
+    have no accepting state left."""
     dfa, source_state_id, symbol, target_state_id = args
     try:
         src_new = next((x for x in dfa.states if x.state_id == source_state_id), None)
@@ -490,81 +508,6 @@ class DFASampler:
 
         return local_paths, local_paths
 
-
-    # def perturbation(self, num_samples: int):
-    #     """
-    #     DFASampler perturbation - uses shared DFALearner._generate_perturbed_samples
-        
-    #     Generates unique perturbed samples with intelligent deduplication.
-        
-    #     ----------
-    #     num_samples : int
-    #         Target number of unique samples to generate
-            
-    #     Returns
-    #     -------
-    #     tuple
-    #         (local_paths, d_samples) - both are lists of unique perturbed sequences
-    #     """
-    #     symbols = self.alphabet if self.alphabet else list(set(self.instance))
-    #     if not symbols:
-    #         raise ValueError("DFASampler requires a non-empty alphabet or non-empty instance.")
-        
-    #     edit_distance = self.edit_distance
-    #     local_paths_set = set()  # Use set for automatic deduplication
-    #     no_progress_count = 0  # Track consecutive failures
-    #     max_no_progress = 50  # If no new samples in 100 tries, give up
-    #     trials = 0
-    #     max_trials = 10000
-        
-    #     while len(local_paths_set) < int(num_samples) and trials < max_trials:
-    #         trials += 1
-            
-    #         new_instance = list(self.instance)
-    #         op = random.choice(["replace", "insert", "delete"])
-    #         max_edit = min(edit_distance, len(new_instance))
-    #         edit_dist = random.randint(0, max_edit) if max_edit > 0 else 0
-
-    #         if op == "replace":
-    #             if len(new_instance) > 0 and edit_dist > 0:
-    #                 replace_indices = random.sample(range(len(new_instance)), min(edit_dist, len(new_instance)))
-    #                 for idx in replace_indices:
-    #                     different_symbols = [s for s in symbols if s != new_instance[idx]]
-    #                     if different_symbols:
-    #                         new_instance[idx] = random.choice(different_symbols)
-
-    #         elif op == "insert":
-    #             for _ in range(edit_dist):
-    #                 insert_idx = random.randint(0, len(new_instance))
-    #                 new_instance.insert(insert_idx, random.choice(symbols))
-
-    #         elif op == "delete":
-    #             if len(new_instance) > 0 and edit_dist > 0:
-    #                 delete_count = min(edit_dist, len(new_instance))
-    #                 delete_indices = sorted(random.sample(range(len(new_instance)), delete_count), reverse=True)
-    #                 for idx in delete_indices:
-    #                     del new_instance[idx]
-
-    #         # Convert to hashable tuple for deduplication
-    #         hashable_instance = tuple(new_instance)
-            
-    #         # Track progress for early exit
-    #         prev_size = len(local_paths_set)
-    #         local_paths_set.add(hashable_instance)
-            
-    #         if len(local_paths_set) == prev_size:
-    #             no_progress_count += 1
-    #         else:
-    #             no_progress_count = 0
-            
-    #         # Early exit if no progress for too long
-    #         if no_progress_count > max_no_progress:
-    #             break
-
-    #     local_paths = [list(seq) for seq in local_paths_set]
-    #     return local_paths, local_paths
-        
-        
     def __call__(self, num_samples, compute_labels=True):
         if self.instance is None:
             raise ValueError("DFASampler instance is not set. Call set_instance_label(X) first.")
@@ -1765,15 +1708,18 @@ class DFALearner(BaseAutomataLearner):
             List of current DFAs
         state : dict
             State dictionary for tracking metrics
-        sample_fcn : object
-            Sampling function with feature values
         iteration : int
-            Current iteration number
+            Current iteration number (even -> DELETE+MERGE, odd -> DELTA)
         previous_best : list
             List of best DFAs from previous iteration
-        data_type : str
-            Type of data ('Tabular', 'Text', etc.)
-            
+        output_dir : str
+            Directory used for intermediate .mata export (needed by DELTA's
+            CXP analysis)
+        beam_size : int
+            Beam width; also scales merge-pair candidate diversity
+        batch_size : int
+            Number of cached samples to read from state for scoring
+
         Returns
         -------
         list
