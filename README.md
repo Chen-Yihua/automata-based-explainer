@@ -1,6 +1,6 @@
 # Local Explanation for Black-Box Sequential Models
 
-本專案為碩士論文《Local Explanation for Black-Box Sequential Models》的程式碼實作。主要在學習一個精簡的**決定性有限自動機（DFA）**來解釋黑箱模型的局部決策邏輯。
+本專案為碩士論文《Local Explanation for Black-Box Sequential Models》的程式碼實作。主要在學習一個精簡的 **決定性有限自動機（DFA）** 來解釋黑箱模型的局部決策邏輯。
 
 **方法概述**：首先透過被動學習演算法（RPNI），從目標序列附近的擾動樣本建構初始 DFA；接著以 **Beam Search** 搭配 **KL-LUCB** 反覆執行 Delete、Merge、Delta 三種操作 來生成候選 DFA。KL-LUCB 負責在有限取樣預算下，判斷哪些候選解值得保留。最終從搜尋歷史中選擇滿足使用者指定的一致率門檻下，狀態數最少的自動機。
 
@@ -42,9 +42,8 @@ anchor-llm/
 git clone https://github.com/Chen-Yihua/anchor-automata-explainer.git
 cd anchor-automata-explainer
 
-conda create -n anchor-tf-gpu python=3.10
-conda activate anchor-tf-gpu
-# 亦可改用一般的 `python3 -m venv venv`；本專案開發與測試環境均採用 conda
+python3 -m venv venv
+source venv/bin/activate
 
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -52,6 +51,6 @@ pip install -r requirements.txt
 
 `requirements.txt` 固定使用 `tensorflow==2.20.0`。若偵測到相容的 NVIDIA 驅動程式，pip 會自動安裝支援 GPU 的版本；若無，則自動退回 CPU 版本，兩種情況皆不需額外安裝 CUDA 工具組或使用 conda-forge。
 
-完整的實驗設定矩陣、smoke test 執行方式、SA/GA/PSO 超參數調整流程，以及如何由原始實驗 log 重現論文中的 summary table 與圖表，請參見 [`RUNNING.md`](RUNNING.md)。
+完整的實驗設定、執行方式、SA/GA/PSO 超參數調整流程，請參見 [`RUNNING.md`](RUNNING.md)。
 
 ```
