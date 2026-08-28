@@ -19,7 +19,6 @@ site-packages/
 test_result/
 external_modules/
 pickle/
-dataset/
 
 # Test files
 tests/
