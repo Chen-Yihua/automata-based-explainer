@@ -12,11 +12,9 @@ from sklearn.metrics import accuracy_score
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 SRC_PATH = os.path.join(PROJECT_ROOT, 'src')
 EXTERNAL_MODULES = os.path.join(PROJECT_ROOT, 'external_modules')
-MODIFIED_MODULES = os.path.join(PROJECT_ROOT, 'modified_modules')
 EXPLAINING_FA = os.path.join(EXTERNAL_MODULES, 'Explaining-FA')
-INTERPRETERA_SRC = os.path.join(EXTERNAL_MODULES, 'interpretera', 'src')
 
-for path in [MODIFIED_MODULES, SRC_PATH, EXTERNAL_MODULES, EXPLAINING_FA, INTERPRETERA_SRC, PROJECT_ROOT]:
+for path in [SRC_PATH, EXTERNAL_MODULES, EXPLAINING_FA, PROJECT_ROOT]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
