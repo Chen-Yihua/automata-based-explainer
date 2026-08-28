@@ -3,7 +3,6 @@ Learner Factory - Create learner instances based on type
 """
 from .base import BaseAutomataLearner
 from .dfa_learner import DFALearner
-from .ra_learner import RegisterAutomataLearner
 
 
 class LearnerFactory:
@@ -47,8 +46,6 @@ class LearnerFactory:
 
 # Register the learners
 LearnerFactory.register('dfa', DFALearner)
-LearnerFactory.register('ra', RegisterAutomataLearner)
-LearnerFactory.register('register', RegisterAutomataLearner)  # Alias
 
 
 # ============================================================
@@ -60,23 +57,20 @@ def get_learner(learner_type: str = 'dfa', new_instance: bool = False) -> BaseAu
     """
     Get learner instance
     
-    :param learner_type: Learner type ('dfa', 'ra', 'register')
+    :param learner_type: Learner type ('dfa')
     :param new_instance: Whether to create a new instance
     :return: Learner instance
-    
+
     Usage:
         learner = get_learner('dfa')       # Shared DFA learner
-        learner = get_learner('ra')        # Shared RA learner
         learner = get_learner('dfa', True) # New DFA instance
     """
-    
+
     if new_instance:
         return LearnerFactory.create(learner_type, new_instance=True)
-    
+
     learner_type = learner_type.lower()
     if learner_type == 'dfa':
         return DFALearner()
-    elif learner_type in ('ra', 'register'):
-        return RegisterAutomataLearner()
-    
+
     return LearnerFactory.create(learner_type, new_instance=False)
