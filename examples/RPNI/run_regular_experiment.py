@@ -339,9 +339,11 @@ def main() -> None:
         print("  Experiment Parameters")
         print(f"{'=' * 70}")
         print(f"  Selected automata: {', '.join(automata.keys())}")
-        for key, value in sorted(first_cfg.items()):
-            if key not in exclude_keys:
-                print(f"  {key}: {value}")
+        for automata_code, cfg in automata.items():
+            print(f"\n  [{automata_code}]")
+            for key, value in sorted(cfg.items()):
+                if key not in exclude_keys:
+                    print(f"    {key}: {value}")
         print(f"{'=' * 70}")
     finally:
         sys.stdout = original_stdout
