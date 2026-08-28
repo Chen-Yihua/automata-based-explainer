@@ -46,7 +46,6 @@ kiwisolver==1.4.9
 lazy_loader==0.4
 libclang==18.1.1
 libmata==1.31.1
-# conda install -c conda-forge libmata
 llvmlite
 Markdown==3.10
 markdown-it-py==4.0.0
@@ -107,6 +106,7 @@ thinc==8.3.10
 threadpoolctl==3.6.0
 tifffile
 tokenizers==0.22.2
+torch==2.9.1
 tqdm==4.67.1
 # traitlets==5.14.3
 transformers==4.57.6
