@@ -96,6 +96,8 @@ def run_beam(
         batch_size=cfg.get("batch_size", 100),
         init_num_samples=cfg.get("init_num_samples", 1000),
         max_evaluations=cfg.get("max_evaluations"),
+        init_state_range=cfg.get("init_state_range", (25, 65)),
+        max_init_attempts=cfg.get("max_init_attempts", 40),
         use_kllucb=cfg.get("use_kllucb", True),
         output_dir=os.path.join(output_dir, "beam"),
         save_graphs=cfg.get("save_graphs", True),

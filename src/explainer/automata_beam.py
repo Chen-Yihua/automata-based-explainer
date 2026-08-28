@@ -132,17 +132,7 @@ def _score_candidate_acceptance(args: tuple[Any, Sequence, Sequence]) -> dict:
 
 class AutomataBeamSearch:
     """
-    Anchor-style beam search over automata candidates.
-
-    Reused from Anchor:
-        - KL-LUCB bound computation
-        - critical-arm selection
-        - stop condition logic
-
-    Project-specific:
-        - candidates are automata, not feature predicates
-        - sample labels mean local agreement with the explained instance
-        - candidate quality is automaton agreement, not tabular anchor precision
+    Beam search over automata candidates.
     """
 
     # Local KL-LUCB utilities. Keeping them as static methods avoids
