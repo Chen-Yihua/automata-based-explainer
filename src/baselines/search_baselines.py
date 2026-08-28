@@ -8,23 +8,18 @@ learner/pso_optimizer.py dependency to keep synchronized.
 
 from __future__ import annotations
 import copy
-import math
 import gc
 import os
 import numpy as np
+from scipy.special import softmax as _scipy_softmax
 from collections import defaultdict, Counter
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
-from deap import base, creator, tools
-
-from simanneal import Annealer
 from copy import deepcopy
 
-try:
-    from pyswarms.single.global_best import GlobalBestPSO
-    PSO_AVAILABLE = True
-except ImportError:
-    PSO_AVAILABLE = False
-    print("[WARNING] pyswarms not found. PSO baseline will not be available.")
+from deap import base, creator, tools
+from simanneal import Annealer
+from pyswarms.single.global_best import GlobalBestPSO
+
 from automaton.dfa_utils import remove_unreachable_states, dfa_to_graphviz
 from automaton.metrics import compute_automaton_agreement
 
@@ -120,7 +115,7 @@ def _print_operator_summary(method: str, counter, evaluations_used: int = None, 
 
 
 # ======================================================================
-# PSO optimizer (merged from learner/pso_optimizer.py)
+# PSO optimizer
 # ======================================================================
 
 class PSOAutomataOptimizer:
@@ -134,6 +129,11 @@ class PSOAutomataOptimizer:
       DELETE / MERGE / DELTA, not a full DFA encoding.
     - This makes the baseline closer to Beam Search: a population of DFAs is
       iteratively expanded and improved using the same refinement operators.
+
+    pyswarms.GlobalBestPSO (self._pso_engine) owns the velocity/position update
+    and pbest/gbest tracking for these operation-preference vectors; it has no
+    notion of a DFA, so candidate generation, agreement evaluation, and gbest
+    DFA tracking stay custom (see _pyswarms_objective and _update_gbest).
     """
 
     OP_NAMES = ("DELETE", "MERGE", "DELTA")
@@ -193,7 +193,6 @@ class PSOAutomataOptimizer:
         self.gbest_agreement = 0.0
         self.gbest_val_agreement = 0.0
         self.gbest_states = float("inf")
-        self.gbest_position = np.zeros(self.dimensions, dtype=float)
 
         self.pso_no_improve_count = 0
         self.pso_no_improve_threshold = 10
@@ -202,14 +201,25 @@ class PSOAutomataOptimizer:
         # Particle states. Every particle starts from the same initial DFA, but
         # has a different operation-preference vector and velocity.
         self.positions = np.random.normal(0.0, 0.5, size=(self.n_particles, self.dimensions))
-        self.velocities = np.zeros((self.n_particles, self.dimensions), dtype=float)
         self.current_dfas = [deepcopy(self.initial_dfa) for _ in range(self.n_particles)]
         self.current_losses = np.full(self.n_particles, float("inf"), dtype=float)
         self.current_agreements = np.zeros(self.n_particles, dtype=float)
         self.current_states = np.full(self.n_particles, self.initial_states, dtype=int)
         self.pbest_dfas = [deepcopy(self.initial_dfa) for _ in range(self.n_particles)]
         self.pbest_losses = np.full(self.n_particles, float("inf"), dtype=float)
-        self.pbest_positions = self.positions.copy()
+
+        # pyswarms drives the velocity/position update and pbest/gbest-position
+        # tracking for the operation-preference vectors; the DFA-specific parts
+        # (candidate generation, agreement evaluation, gbest DFA tracking) stay
+        # custom since pyswarms has no notion of a DFA.
+        bounds = (np.full(self.dimensions, -5.0), np.full(self.dimensions, 5.0))
+        self._pso_engine = GlobalBestPSO(
+            n_particles=self.n_particles,
+            dimensions=self.dimensions,
+            options={"c1": self.c1, "c2": self.c2, "w": self.w},
+            bounds=bounds,
+            init_pos=self.positions.copy(),
+        )
 
         # Count the initial DFA once as a baseline candidate.
         initial_agreement, initial_states, initial_loss = self._evaluate_and_cache(self.initial_dfa)
@@ -298,8 +308,6 @@ class PSOAutomataOptimizer:
             self.gbest_agreement = float(agreement)
             self.gbest_val_agreement = float(val_agreement)
             self.gbest_states = int(num_states)
-            if particle_id is not None:
-                self.gbest_position = self.positions[int(particle_id)].copy()
             val_str = f", val_agr={val_agreement:.4f}" if val_agreement > 0 else ""
             src = ""
             if particle_id is not None:
@@ -314,12 +322,10 @@ class PSOAutomataOptimizer:
 
     def _softmax(self, scores: np.ndarray) -> np.ndarray:
         scores = np.asarray(scores, dtype=float)
-        scores = scores - np.max(scores)
-        exp_scores = np.exp(scores)
-        denom = float(np.sum(exp_scores))
-        if denom <= 0 or not np.isfinite(denom):
+        probs = _scipy_softmax(scores)
+        if not np.all(np.isfinite(probs)):
             return np.ones(len(scores), dtype=float) / len(scores)
-        return exp_scores / denom
+        return probs
 
     def _sample_operation(self, scores: np.ndarray) -> str:
         probs = self._softmax(scores)
@@ -425,23 +431,18 @@ class PSOAutomataOptimizer:
             batch.append((deepcopy(parent_dfa), ["fallback_current"], parent_states))
         return batch
 
-    def _update_particle_position(self, particle_id: int):
-        r1 = np.random.random(self.dimensions)
-        r2 = np.random.random(self.dimensions)
-        cognitive = self.c1 * r1 * (self.pbest_positions[particle_id] - self.positions[particle_id])
-        social = self.c2 * r2 * (self.gbest_position - self.positions[particle_id])
-        self.velocities[particle_id] = self.w * self.velocities[particle_id] + cognitive + social
-        self.positions[particle_id] = self.positions[particle_id] + self.velocities[particle_id]
-        self.positions[particle_id] = np.clip(self.positions[particle_id], -5.0, 5.0)
-
-    def objective_function(self, X: np.ndarray = None, **kwargs) -> np.ndarray:
+    def _pyswarms_objective(self, X: np.ndarray, **kwargs) -> np.ndarray:
         """
-        One iterative PSO refinement round.
+        Objective function driven by pyswarms's GlobalBestPSO.optimize() loop.
 
-        This method is kept for compatibility with older call sites, but this
-        class now runs its own optimization loop in optimize().  It evaluates one
-        local candidate pool per particle and updates that particle's current DFA.
+        pyswarms calls this once per iteration with the whole swarm's current
+        position matrix (after it has already applied its own velocity/position
+        update from the previous iteration's returned costs). We sync
+        self.positions from X, generate + evaluate one local DFA candidate pool
+        per particle exactly as before, and return the per-particle loss so
+        pyswarms can update pbest/gbest for the position vectors itself.
         """
+        self.positions = np.asarray(X, dtype=float)
         n_particles = self.n_particles
         losses = np.zeros(n_particles, dtype=float)
         iteration_improved = False
@@ -508,7 +509,6 @@ class PSOAutomataOptimizer:
                 if best_particle_loss < self.pbest_losses[particle_id]:
                     self.pbest_losses[particle_id] = best_particle_loss
                     self.pbest_dfas[particle_id] = deepcopy(best_candidate_dfa)
-                    self.pbest_positions[particle_id] = self.positions[particle_id].copy()
 
                 val_agreement = 0.0
                 self._update_gbest(
@@ -524,7 +524,6 @@ class PSOAutomataOptimizer:
                 best_particle_loss = self.current_losses[particle_id]
 
             losses[particle_id] = best_particle_loss
-            self._update_particle_position(particle_id)
 
         if iteration_improved:
             self.pso_no_improve_count = 0
@@ -561,8 +560,12 @@ class PSOAutomataOptimizer:
         stop_reason = ""
         for _ in range(n_iterations):
             try:
-                losses = self.objective_function()
-                trajectory.append(float(np.min(losses)) if len(losses) else float("inf"))
+                # One pyswarms iteration: it applies its own velocity/position
+                # update to self.positions (via _pyswarms_objective's return
+                # value), then calls _pyswarms_objective again with the new
+                # positions to score them.
+                self._pso_engine.optimize(self._pyswarms_objective, iters=1, verbose=False)
+                trajectory.append(float(self._pso_engine.swarm.best_cost))
             except RuntimeError as exc:
                 stop_reason = str(exc)
                 if self.verbose:
@@ -633,8 +636,11 @@ class SharedInit(NamedTuple):
     learner     : DFALearner  – the learner instance (holds alphabet_map etc.)
     validation_data : list       – validation samples (from beam search)
     validation_labels : np.ndarray – validation labels (from beam search)
-    training_data : list       – perturbation training samples (FIXED, shared across SA/GA/PSO)
-    training_labels : np.ndarray – perturbation training labels (FIXED, shared across SA/GA/PSO)
+    training_data : list       – Beam Search's first (pre-KL-LUCB-growth) sample
+        batch used to evaluate the initial automaton; reused as-is (FIXED,
+        shared across SA/GA/PSO) so every candidate in every method is scored
+        against this same batch.
+    training_labels : np.ndarray – labels for training_data (FIXED, shared across SA/GA/PSO)
     """
     initial_dfa: object
     learner: object
@@ -1368,7 +1374,8 @@ def ga_dfa_search(data_type: str,
 
 
 # ======================================================================
-# Particle Swarm Optimisation (using pyswarms.GlobalBestPSO)
+# Particle Swarm Optimisation (drives pyswarms.GlobalBestPSO; see
+# PSOAutomataOptimizer above for the DFA-specific candidate generation)
 # ======================================================================
 
 def pso_dfa_search(data_type: str,

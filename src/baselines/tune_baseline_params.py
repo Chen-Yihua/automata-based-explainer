@@ -39,11 +39,8 @@ from pathlib import Path
 
 import numpy as np
 
-# PROJECT_ROOT = Path(__file__).resolve().parent
-# SRC_PATH = PROJECT_ROOT / "src"
-# if str(SRC_PATH) not in sys.path:
-#     sys.path.insert(0, str(SRC_PATH))
-
+# This file lives at <repo_root>/src/baselines/tune_baseline_params.py, so
+# parents[2] is the repo root (parents[0]=baselines, parents[1]=src).
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_PATH = PROJECT_ROOT / "src"
 
@@ -153,6 +150,10 @@ def extract_result_metrics(result: dict) -> dict:
 
 
 def load_shared_init_from_disk(output_dir: str | Path):
+    """Load shared/shared_init.pkl, accepting the current SharedInit namedtuple
+    as well as two older on-disk formats (a plain dict, and a legacy
+    positional tuple/list) so tuning can run against experiment folders
+    produced by earlier code versions."""
     output_dir = Path(output_dir)
     shared_init_path = output_dir / "shared" / "shared_init.pkl"
     if not shared_init_path.exists():
@@ -269,7 +270,8 @@ def write_results_tables(rows: list[dict], output_dir: Path) -> None:
 
 
 def write_summary_text(all_results: dict, experiment_names: list[str], output_dir: Path) -> None:
-    """Write the same ranking summary to a text file."""
+    """Write the top-20 cross-experiment ranking (same rule as summarize()'s
+    console output) to summary_top20.txt."""
     rows = []
     for exp_name in experiment_names:
         for algo, configs in all_results[exp_name].items():
@@ -425,6 +427,12 @@ def parse_args():
 
 
 def load_training_data(shared_data, batch_size: int = BATCH_SIZE):
+    """Get the FIXED training batch that SA/GA/PSO must all score candidates
+    against. Prefers shared_data's own training_data/training_labels; if an
+    older shared_init.pkl only saved validation data, fall back to repeating
+    the validation samples up to batch_size. That fallback is a compromise
+    for tuning old runs only -- it should not happen for current experiment
+    folders, which always save a separate training batch."""
     if isinstance(shared_data, SharedInit):
         if shared_data.training_data is not None and shared_data.training_labels is not None:
             return list(shared_data.training_data), np.asarray(shared_data.training_labels)
@@ -449,6 +457,9 @@ def load_training_data(shared_data, batch_size: int = BATCH_SIZE):
 
 
 def make_shared_init(shared_data, training_data, training_labels) -> SharedInit:
+    """Normalize a loaded shared_data (SharedInit or dict, from
+    load_shared_init_from_disk) plus a resolved training batch (from
+    load_training_data) into a proper SharedInit for sa/ga/pso_dfa_search."""
     if isinstance(shared_data, SharedInit):
         return SharedInit(
             initial_dfa=shared_data.initial_dfa,
@@ -470,6 +481,8 @@ def make_shared_init(shared_data, training_data, training_labels) -> SharedInit:
 
 
 def run_sa_test(shared_init: SharedInit, cfg: dict, output_dir: Path) -> dict:
+    """Run one SA config and return a standardized result dict (or
+    {"success": False, "error": ...} if the run raised)."""
     cfg_name = format_sa_config(cfg)
     print(f"  [SA] {cfg_name}...", end="", flush=True)
     start = time.time()
@@ -501,6 +514,8 @@ def run_sa_test(shared_init: SharedInit, cfg: dict, output_dir: Path) -> dict:
 
 
 def run_ga_test(shared_init: SharedInit, population_size: int, output_dir: Path) -> dict:
+    """Run one GA config (only population_size is tuned) and return a
+    standardized result dict."""
     print(f"  [GA] pop={population_size}...", end="", flush=True)
     start = time.time()
     try:
@@ -528,6 +543,8 @@ def run_ga_test(shared_init: SharedInit, population_size: int, output_dir: Path)
 
 
 def run_pso_test(shared_init: SharedInit, n_particles: int, pool_size: int, max_ops: int, output_dir: Path) -> dict:
+    """Run one PSO config (n_particles/pool_size tuned, max_ops fixed at 1)
+    and return a standardized result dict."""
     cfg_name = format_pso_config(n_particles, pool_size, max_ops)
     print(f"  [PSO] {cfg_name}...", end="", flush=True)
     start = time.time()
@@ -558,6 +575,9 @@ def run_pso_test(shared_init: SharedInit, n_particles: int, pool_size: int, max_
 
 
 def summarize(all_results: dict, experiment_names: list[str]) -> None:
+    """Print a top-20 cross-experiment ranking of the best run per
+    (experiment, algorithm, config), ranked by: meets threshold > fewer
+    states > higher agreement > shorter time."""
     print("\n" + "=" * 100)
     print("跨資料集最佳參數組合")
     print("=" * 100)
