@@ -1,8 +1,8 @@
 # Local Explanation for Black-Box Sequential Models
 
-本專案為碩士論文《Local Explanation for Black-Box Sequential Models》的程式碼實作。主要在學習一個精簡的 **決定性有限自動機（DFA）** 來解釋黑箱模型的局部決策邏輯。
+本專案為碩士論文《Local Explanation for Black-Box Sequential Models》的程式碼實作。主要在學習一個精簡的 **決定性有限自動機(DFA)** 來解釋黑箱模型的局部決策邏輯。
 
-**方法概述**：首先透過被動學習演算法（RPNI），從目標序列附近的擾動樣本建構初始 DFA；接著以 **Beam Search** 搭配 **KL-LUCB** 反覆執行 Delete、Merge、Delta 三種操作 來生成候選 DFA。KL-LUCB 負責在有限取樣預算下，判斷哪些候選解值得保留。最終從搜尋歷史中選擇滿足使用者指定的一致率門檻下，狀態數最少的自動機。
+**方法概述**：首先透過被動學習演算法（RPNI），從目標序列附近的擾動樣本建構初始 DFA；接著以 **Beam Search** 搭配 **KL-LUCB** 反覆執行 Delete、Merge、Delta 三種操作來生成候選 DFA。KL-LUCB 負責在有限取樣預算下，判斷哪些候選解值得保留。最終從搜尋歷史中選擇滿足使用者指定的一致率門檻下，狀態數最少的自動機。
 
 **實驗設計涵蓋**：
 - 三項 regular-language 任務（Secure Handshake、Document Release Workflow、Navigation Workflow），以 ground-truth DFA 作為黑盒 teacher。
