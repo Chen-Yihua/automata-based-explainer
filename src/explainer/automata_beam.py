@@ -8,6 +8,7 @@ modules under src/automaton and src/learner.
 from __future__ import annotations
 
 import copy
+import random
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from collections import defaultdict, namedtuple
@@ -172,6 +173,28 @@ class AutomataBeamSearch:
         self.validation_labels = np.array([], dtype=np.float64)
         self.iteration = 0
         self.state: dict = {}
+        # Monotonic counter, incremented once per parallel sampling task
+        # submitted (in the fixed, sequential order tasks are decided and
+        # queued -- never touched by worker threads). Used together with the
+        # sampler's own seed to give each submitted task its own independent,
+        # reproducible random.Random stream, so parallel=True sampling stays
+        # bit-for-bit reproducible even though thread scheduling itself is
+        # not deterministic. See draw_automata_samples_parallel().
+        self._sample_call_counter = 0
+
+        # Every automaton candidate ever proposed, kept alive for the whole
+        # search. self.state's t_nsamples/t_positives/... dicts are keyed by
+        # id(automaton) (a memory address) and are never cleared, so if a
+        # rejected candidate were garbage-collected mid-search, Python could
+        # reuse its address for a brand-new, unrelated candidate -- which
+        # would then silently "inherit" the old candidate's stale
+        # accumulated stats on its first lookup. Retaining a strong
+        # reference to every candidate here for the search's lifetime makes
+        # id() reuse impossible, so this can't happen. This is a real,
+        # pre-existing source of non-determinism (memory allocation timing
+        # is not guaranteed identical across runs), not something limited to
+        # parallel=True.
+        self._id_reuse_guard: List[Any] = []
 
     def _get_process_pool(self):
         """Return a lazily-created, reusable ProcessPoolExecutor sized to n_jobs."""
@@ -255,6 +278,22 @@ class AutomataBeamSearch:
         model objects. DFA agreement scoring is pushed into processes so the
         Python-level path traversal in check_dfa_path_accepted can run without
         the GIL.
+
+        Reproducibility: perturbation sampling normally draws from the shared
+        global `random` module, which is safe for a single sequential caller
+        but not for several threads consuming it concurrently -- which
+        thread's draw lands where in the shared stream depends on OS thread
+        scheduling, so results are not reproducible across runs even with a
+        fixed seed. When the sampler was constructed with an explicit seed,
+        each task submitted here instead gets its own independent
+        random.Random, keyed by (sampler seed, a monotonically increasing
+        call counter). That counter is advanced here in the same fixed,
+        purely sequential order every run (deciding what to submit is never
+        threaded), so task #k always gets the same independent stream
+        regardless of which worker thread actually executes it or in what
+        wall-clock order threads finish -- giving bit-for-bit reproducible
+        sampling under parallel=True. Callers that never set a sampler seed
+        keep the old (not reproducibility-guaranteed) behavior unchanged.
         """
         if not automata_list:
             return (), (), (), ()
@@ -268,10 +307,18 @@ class AutomataBeamSearch:
 
         max_workers = min(n_jobs, len(automata_list))
         sampled_batches = []
+        base_seed = getattr(self.sample_fcn, "seed", None)
 
         sample_start = time.perf_counter()
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(self.sample_fcn, num_samples=batch_size) for _ in automata_list]
+            futures = []
+            for _ in automata_list:
+                if base_seed is not None:
+                    call_rng = random.Random((base_seed, self._sample_call_counter))
+                    self._sample_call_counter += 1
+                    futures.append(executor.submit(self.sample_fcn, num_samples=batch_size, rng=call_rng))
+                else:
+                    futures.append(executor.submit(self.sample_fcn, num_samples=batch_size))
             for fut in futures:
                 raw_data, labels = fut.result()
                 sampled_batches.append((raw_data, labels))
@@ -834,6 +881,9 @@ class AutomataBeamSearch:
                 batch_size,
             )
             self._profile_totals["propose_automata"] += time.perf_counter() - propose_start
+            # Keep every proposed candidate alive for the rest of the search;
+            # see _id_reuse_guard's definition in __init__ for why.
+            self._id_reuse_guard.extend(candidates)
 
             if not candidates:
                 print("[Beam] No candidates proposed. Stopping.")
@@ -953,9 +1003,14 @@ class AutomataBeamSearch:
             # without printing large candidate tables or CXP details.
             best_agreement = max(round_stats["training_agreements"]) if round_stats["training_agreements"] else 0.0
             best_states = min(round_stats["states"]) if round_stats["states"] else 0
+            # Samples actually spent on each selected candidate's agreement estimate
+            # this round (KL-LUCB may have drawn several extra batches beyond the
+            # initial one for candidates that were hard to distinguish).
+            n_samples_used = [int(n) for n in selected_stats["n_samples"]]
             print(
                 f"[Beam Iter {self.iteration}] selected={len(beam)}, "
-                f"best_agreement={best_agreement:.4f}, best_states={best_states}"
+                f"best_agreement={best_agreement:.4f}, best_states={best_states}, "
+                f"n_samples={n_samples_used}"
             )
             self.iteration += 1
 

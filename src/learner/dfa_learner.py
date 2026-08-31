@@ -288,6 +288,7 @@ class DFASampler:
         self.predictor = predictor
         self.alphabet = list(alphabet or [])
         self.edit_distance = edit_distance
+        self.seed = seed
         self.instance = None
         self.instance_label = None
         self.n_covered_ex = 10
@@ -415,7 +416,7 @@ class DFASampler:
         preds = np.asarray(self._predict_with_cache(samples))
         return np.asarray(preds == self.instance_label, dtype=int)
     
-    def perturbation(self, num_samples: int):
+    def perturbation(self, num_samples: int, rng: "random.Random | None" = None):
         """
         Generate perturbed samples within Levenshtein edit distance <= edit_distance.
 
@@ -423,12 +424,21 @@ class DFASampler:
         ----------
         num_samples : int
             Number of perturbed samples to generate.
+        rng : random.Random, optional
+            Independent random source to draw from instead of the shared
+            global `random` module. Passed in by callers (e.g. the parallel
+            KL-LUCB sampler) that need each concurrent call to consume its
+            own deterministic stream, so results stay reproducible even when
+            several samplers run at once and thread scheduling is not
+            deterministic. Defaults to the global `random` module, matching
+            prior behavior, when not provided.
 
         Returns
         -------
         tuple
             (local_paths, d_samples)
         """
+        _r = rng if rng is not None else random
 
         symbols = self.alphabet if self.alphabet else list(set(self.instance))
         if not symbols:
@@ -451,7 +461,7 @@ class DFASampler:
             new_instance = list(self.instance)
 
             # Total edit operations for this sample
-            remaining_edits = random.randint(0, self.edit_distance)
+            remaining_edits = _r.randint(0, self.edit_distance)
 
             while remaining_edits > 0:
 
@@ -460,11 +470,11 @@ class DFASampler:
                 if len(new_instance) > 0:
                     possible_ops.append("delete")
 
-                op = random.choice(possible_ops)
+                op = _r.choice(possible_ops)
 
                 if op == "replace":
 
-                    idx = random.randrange(len(new_instance))
+                    idx = _r.randrange(len(new_instance))
 
                     different_symbols = [
                         s for s in symbols
@@ -472,20 +482,20 @@ class DFASampler:
                     ]
 
                     if different_symbols:
-                        new_instance[idx] = random.choice(different_symbols)
+                        new_instance[idx] = _r.choice(different_symbols)
 
                 elif op == "insert":
 
-                    idx = random.randint(0, len(new_instance))
+                    idx = _r.randint(0, len(new_instance))
 
                     new_instance.insert(
                         idx,
-                        random.choice(symbols)
+                        _r.choice(symbols)
                     )
 
                 elif op == "delete":
 
-                    idx = random.randrange(len(new_instance))
+                    idx = _r.randrange(len(new_instance))
                     del new_instance[idx]
 
                 remaining_edits -= 1
@@ -508,11 +518,11 @@ class DFASampler:
 
         return local_paths, local_paths
 
-    def __call__(self, num_samples, compute_labels=True):
+    def __call__(self, num_samples, compute_labels=True, rng=None):
         if self.instance is None:
             raise ValueError("DFASampler instance is not set. Call set_instance_label(X) first.")
 
-        raw_data, d_raw_data = self.perturbation(num_samples)
+        raw_data, d_raw_data = self.perturbation(num_samples, rng=rng)
 
         # Generate labels by comparing predictions with instance_label
         if compute_labels:
