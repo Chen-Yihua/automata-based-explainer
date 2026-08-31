@@ -12,7 +12,6 @@ import pickle
 import random
 import sys
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import torch
@@ -209,17 +208,9 @@ def run_one_language(lang_code: str, cfg: dict, output_root: str) -> dict | None
             traceback.print_exc(file=sys.stdout)
             return result_key, None
 
-    if len(test_instances) > 1:
-        max_workers = min(len(test_instances), os.cpu_count() or 1)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(_run_instance, instance_idx, test_instance) for instance_idx, test_instance in enumerate(test_instances)]
-            for fut in futures:
-                result_key, result = fut.result()
-                all_instance_results[result_key] = result
-    else:
-        for instance_idx, test_instance in enumerate(test_instances):
-            result_key, result = _run_instance(instance_idx, test_instance)
-            all_instance_results[result_key] = result
+    for instance_idx, test_instance in enumerate(test_instances):
+        result_key, result = _run_instance(instance_idx, test_instance)
+        all_instance_results[result_key] = result
 
     return all_instance_results
 
