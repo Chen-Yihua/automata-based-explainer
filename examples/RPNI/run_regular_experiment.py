@@ -268,6 +268,17 @@ def parse_args():
     parser.add_argument("--n_jobs", type=int, default=None, help="Number of worker threads for KL-LUCB sampling/agreement evaluation.")
     parser.add_argument("--no_prediction_cache", dest="use_prediction_cache", action="store_false", default=None, help="Disable teacher prediction cache.")
     parser.add_argument("--prediction_cache_max_size", type=int, default=None, help="Maximum cached teacher predictions. Use 0 for unlimited.")
+    parser.add_argument(
+        "--output_suffix",
+        type=str,
+        default="",
+        help=(
+            "Appended to the auto-derived output folder name "
+            "(test_result/regular_{threshold}_{batch_size}{output_suffix}). "
+            "Use this to avoid colliding with an existing run when overriding "
+            "a parameter (e.g. --beam_size) that isn't part of the folder name."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -303,7 +314,16 @@ def main() -> None:
     first_cfg = next(iter(automata.values()))
     agreement_threshold = first_cfg["agreement_threshold"]
     batch_size = first_cfg["batch_size"]
-    output_root = os.path.join(PROJECT_ROOT, "test_result", f"regular_{agreement_threshold}_{batch_size}")
+    output_root = os.path.join(
+        PROJECT_ROOT, "test_result", f"regular_{agreement_threshold}_{batch_size}{args.output_suffix}"
+    )
+    if os.path.exists(output_root):
+        raise FileExistsError(
+            f"Output root already exists: {output_root}\n"
+            "Refusing to run into an existing results folder (would overwrite "
+            "prior results). Pass --output_suffix to pick a different folder, "
+            "or remove/move the existing one first if you intend to replace it."
+        )
     os.makedirs(output_root, exist_ok=True)
     log_path = os.path.join(output_root, "experiment_log.txt")
 
