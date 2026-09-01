@@ -1,0 +1,38 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=circle];
+  "s1" [shape=circle];
+  "s4" [shape=doublecircle];
+  "s17" [shape=doublecircle];
+  "s0" -> "s0" [label="verify"];
+  "s0" -> "s1" [label="hello"];
+  "s0" -> "s0" [label="cert"];
+  "s0" -> "s0" [label="retry"];
+  "s0" -> "s0" [label="alert"];
+  "s0" -> "s0" [label="key"];
+  "s0" -> "s0" [label="ack"];
+  "s1" -> "s0" [label="key"];
+  "s1" -> "s4" [label="cert"];
+  "s1" -> "s0" [label="verify"];
+  "s1" -> "s0" [label="retry"];
+  "s1" -> "s0" [label="hello"];
+  "s1" -> "s1" [label="ack"];
+  "s1" -> "s1" [label="alert"];
+  "s4" -> "s0" [label="ack"];
+  "s4" -> "s17" [label="key"];
+  "s4" -> "s4" [label="alert"];
+  "s4" -> "s4" [label="retry"];
+  "s4" -> "s4" [label="verify"];
+  "s4" -> "s4" [label="hello"];
+  "s4" -> "s4" [label="cert"];
+  "s17" -> "s17" [label="key"];
+  "s17" -> "s17" [label="verify"];
+  "s17" -> "s0" [label="alert"];
+  "s17" -> "s17" [label="ack"];
+  "s17" -> "s4" [label="hello"];
+  "s17" -> "s17" [label="retry"];
+  "s17" -> "s17" [label="cert"];
+}

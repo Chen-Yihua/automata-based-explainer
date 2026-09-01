@@ -1,0 +1,24 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=circle];
+  "s3" [shape=doublecircle];
+  "s0" -> "s0" [label="review"];
+  "s0" -> "s0" [label="approve"];
+  "s0" -> "s3" [label="draft"];
+  "s0" -> "s0" [label="publish"];
+  "s0" -> "s0" [label="comment"];
+  "s0" -> "s0" [label="revise"];
+  "s0" -> "s0" [label="assign"];
+  "s0" -> "s0" [label="hold"];
+  "s3" -> "s3" [label="review"];
+  "s3" -> "s0" [label="comment"];
+  "s3" -> "s3" [label="approve"];
+  "s3" -> "s3" [label="revise"];
+  "s3" -> "s0" [label="assign"];
+  "s3" -> "s3" [label="publish"];
+  "s3" -> "s3" [label="draft"];
+  "s3" -> "s3" [label="hold"];
+}

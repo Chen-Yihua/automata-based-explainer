@@ -1,0 +1,8 @@
+Wafer ablation: init_num_samples=2000, batch_size in {500, 1000, 2000}
+edit_distance=2, agreement_threshold=0.8, methods=(beam,)
+
+| batch_size | Init States | Train (Init->Final) | Status | Validation (Init->Final) | Final States | Time (s) |
+|------------|-------------|---------------------|--------|--------------------------|--------------|----------|
+| 500        | 84          | 0.9180->0.8374      | OK     | 1.0000->0.6045           | 10           | 1495.0   |
+| 1000       | 84          | 0.9120->0.8811      | OK     | 1.0000->0.5100           | 4            | 1879.9   |
+| 2000       | 84          | 0.8855->0.8536      | OK     | 1.0000->0.5240           | 4            | 3519.6   |

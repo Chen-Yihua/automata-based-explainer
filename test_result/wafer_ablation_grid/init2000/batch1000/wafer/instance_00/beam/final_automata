@@ -1,0 +1,38 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=circle];
+  "s59" [shape=circle];
+  "s43" [shape=doublecircle];
+  "s64" [shape=circle];
+  "s0" -> "s0" [label="VL", color=red, penwidth=2.5, fontcolor=red];
+  "s0" -> "s0" [label="VH", color=red, penwidth=2.5, fontcolor=red];
+  "s0" -> "s0" [label="H"];
+  "s0" -> "s0" [label="M", color=red, penwidth=2.5, fontcolor=red];
+  "s0" -> "s0" [label="SH", color=red, penwidth=2.5, fontcolor=red];
+  "s0" -> "s0" [label="SL", color=red, penwidth=2.5, fontcolor=red];
+  "s0" -> "s59" [label="L", color=red, penwidth=2.5, fontcolor=red];
+  "s59" -> "s64" [label="L", color=red, penwidth=2.5, fontcolor=red];
+  "s59" -> "s64" [label="M"];
+  "s59" -> "s43" [label="SH"];
+  "s59" -> "s0" [label="SL"];
+  "s59" -> "s0" [label="VL"];
+  "s59" -> "s59" [label="H"];
+  "s59" -> "s59" [label="VH"];
+  "s43" -> "s43" [label="SH"];
+  "s43" -> "s43" [label="SL"];
+  "s43" -> "s0" [label="H"];
+  "s43" -> "s43" [label="VL"];
+  "s43" -> "s0" [label="VH"];
+  "s43" -> "s0" [label="M"];
+  "s43" -> "s43" [label="L"];
+  "s64" -> "s64" [label="L", color=red, penwidth=2.5, fontcolor=red];
+  "s64" -> "s64" [label="H"];
+  "s64" -> "s0" [label="SH"];
+  "s64" -> "s0" [label="SL"];
+  "s64" -> "s0" [label="VH"];
+  "s64" -> "s0" [label="M"];
+  "s64" -> "s0" [label="VL"];
+}

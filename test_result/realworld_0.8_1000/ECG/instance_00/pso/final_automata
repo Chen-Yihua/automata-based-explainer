@@ -1,0 +1,30 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=doublecircle];
+  "s1" [shape=doublecircle];
+  "s14" [shape=circle];
+  "s0" -> "s1" [label="VL"];
+  "s0" -> "s0" [label="M"];
+  "s0" -> "s1" [label="VH"];
+  "s0" -> "s14" [label="H"];
+  "s0" -> "s0" [label="SL"];
+  "s0" -> "s0" [label="L"];
+  "s0" -> "s14" [label="SH"];
+  "s1" -> "s1" [label="M"];
+  "s1" -> "s1" [label="VH"];
+  "s1" -> "s1" [label="H"];
+  "s1" -> "s1" [label="VL"];
+  "s1" -> "s1" [label="L"];
+  "s1" -> "s1" [label="SH"];
+  "s1" -> "s1" [label="SL"];
+  "s14" -> "s0" [label="SH"];
+  "s14" -> "s14" [label="H"];
+  "s14" -> "s14" [label="SL"];
+  "s14" -> "s14" [label="VL"];
+  "s14" -> "s0" [label="M"];
+  "s14" -> "s0" [label="VH"];
+  "s14" -> "s1" [label="L"];
+}

@@ -1,0 +1,38 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=doublecircle];
+  "s1" [shape=doublecircle];
+  "s2" [shape=circle];
+  "s26" [shape=circle];
+  "s0" -> "s1" [label="VL"];
+  "s0" -> "s2" [label="M"];
+  "s0" -> "s1" [label="VH"];
+  "s0" -> "s2" [label="H"];
+  "s0" -> "s0" [label="SL"];
+  "s0" -> "s0" [label="L"];
+  "s0" -> "s2" [label="SH"];
+  "s1" -> "s1" [label="M"];
+  "s1" -> "s1" [label="VH"];
+  "s1" -> "s1" [label="H"];
+  "s1" -> "s1" [label="VL"];
+  "s1" -> "s1" [label="L"];
+  "s1" -> "s1" [label="SH"];
+  "s1" -> "s1" [label="SL"];
+  "s2" -> "s0" [label="M"];
+  "s2" -> "s2" [label="VL"];
+  "s2" -> "s2" [label="H"];
+  "s2" -> "s0" [label="SH"];
+  "s2" -> "s0" [label="VH"];
+  "s2" -> "s26" [label="SL"];
+  "s2" -> "s1" [label="L"];
+  "s26" -> "s1" [label="SL"];
+  "s26" -> "s26" [label="L"];
+  "s26" -> "s2" [label="M"];
+  "s26" -> "s26" [label="H"];
+  "s26" -> "s1" [label="VL"];
+  "s26" -> "s0" [label="SH"];
+  "s26" -> "s26" [label="VH"];
+}

@@ -1,0 +1,38 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=circle];
+  "s3" [shape=circle];
+  "s6" [shape=circle];
+  "s30" [shape=doublecircle];
+  "s0" -> "s0" [label="verify"];
+  "s0" -> "s3" [label="hello"];
+  "s0" -> "s0" [label="cert"];
+  "s0" -> "s0" [label="retry"];
+  "s0" -> "s0" [label="alert"];
+  "s0" -> "s0" [label="key"];
+  "s0" -> "s0" [label="ack"];
+  "s3" -> "s3" [label="key"];
+  "s3" -> "s0" [label="ack"];
+  "s3" -> "s6" [label="verify"];
+  "s3" -> "s3" [label="cert"];
+  "s3" -> "s0" [label="alert"];
+  "s3" -> "s0" [label="retry"];
+  "s3" -> "s3" [label="hello"];
+  "s6" -> "s6" [label="hello"];
+  "s6" -> "s30" [label="key"];
+  "s6" -> "s6" [label="verify"];
+  "s6" -> "s0" [label="ack"];
+  "s6" -> "s6" [label="alert"];
+  "s6" -> "s6" [label="cert"];
+  "s6" -> "s6" [label="retry"];
+  "s30" -> "s30" [label="key"];
+  "s30" -> "s30" [label="cert"];
+  "s30" -> "s30" [label="verify"];
+  "s30" -> "s30" [label="ack"];
+  "s30" -> "s30" [label="hello"];
+  "s30" -> "s30" [label="retry"];
+  "s30" -> "s0" [label="alert"];
+}

@@ -1,0 +1,16 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> "s0";
+  "s0" [shape=circle];
+  "s9" [shape=doublecircle];
+  "s0" -> "s0" [label="R"];
+  "s0" -> "s9" [label="U"];
+  "s0" -> "s0" [label="D"];
+  "s0" -> "s9" [label="L"];
+  "s9" -> "s0" [label="R"];
+  "s9" -> "s9" [label="D"];
+  "s9" -> "s9" [label="L"];
+  "s9" -> "s9" [label="U"];
+}

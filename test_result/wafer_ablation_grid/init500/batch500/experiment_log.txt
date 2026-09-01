@@ -1,0 +1,214 @@
+======================================================================
+  WAFER ABLATION (beam search only)
+======================================================================
+  edit_distance=2  init_num_samples=500  batch_size=500
+  Neural network: train_acc=0.9690  test_acc=0.9487
+  Test instance: len=17  seq=['VL', 'VH', 'VH', 'SL', 'M', 'SH', 'SH', 'SH', 'SH', 'SH', 'SH', 'SH', 'SL', 'L', 'L', 'L', 'L']
+
+[RUN SEARCH SUITE] methods=('beam',)  output_dir=/home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00
+--------------------------------------------
+[Beam Iter 0] op=INIT, candidates=1, valid=1, evaluations=1
+[Beam Iter 0] selected=1, best_agreement=0.7360, best_states=41, n_samples=[1000]
+  [MATA] Wrote 287 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 1] op=DELTA, candidates=41, valid=41, evaluations=42
+[Beam Iter 1] selected=1, best_agreement=0.7422, best_states=41, n_samples=[6501]
+[Beam Iter 2] op=DELETE+MERGE, candidates=50, valid=50, evaluations=92
+[Beam Iter 2] selected=1, best_agreement=0.7484, best_states=40, n_samples=[8001]
+  [MATA] Wrote 280 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 3] op=DELTA, candidates=40, valid=40, evaluations=132
+[Beam Iter 3] selected=1, best_agreement=0.7484, best_states=40, n_samples=[8001]
+[Beam Iter 4] op=DELETE+MERGE, candidates=50, valid=50, evaluations=182
+[Beam Iter 4] selected=1, best_agreement=0.7523, best_states=39, n_samples=[12001]
+  [MATA] Wrote 273 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 5] op=DELTA, candidates=39, valid=39, evaluations=221
+[Beam Iter 5] selected=1, best_agreement=0.7530, best_states=39, n_samples=[6001]
+[Beam Iter 6] op=DELETE+MERGE, candidates=49, valid=49, evaluations=270
+[Beam Iter 6] selected=1, best_agreement=0.7505, best_states=38, n_samples=[13001]
+  [MATA] Wrote 266 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 7] op=DELTA, candidates=38, valid=38, evaluations=308
+[Beam Iter 7] selected=1, best_agreement=0.7592, best_states=38, n_samples=[9501]
+[Beam Iter 8] op=DELETE+MERGE, candidates=47, valid=47, evaluations=355
+[Beam Iter 8] selected=1, best_agreement=0.7544, best_states=37, n_samples=[9001]
+  [MATA] Wrote 259 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 9] op=DELTA, candidates=37, valid=37, evaluations=392
+[Beam Iter 9] selected=1, best_agreement=0.7568, best_states=37, n_samples=[6501]
+[Beam Iter 10] op=DELETE+MERGE, candidates=46, valid=46, evaluations=438
+[Beam Iter 10] selected=1, best_agreement=0.7512, best_states=36, n_samples=[9001]
+  [MATA] Wrote 252 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 11] op=DELTA, candidates=36, valid=36, evaluations=474
+[Beam Iter 11] selected=1, best_agreement=0.7574, best_states=36, n_samples=[7501]
+[Beam Iter 12] op=DELETE+MERGE, candidates=46, valid=46, evaluations=520
+[Beam Iter 12] selected=1, best_agreement=0.7551, best_states=35, n_samples=[8501]
+  [MATA] Wrote 245 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 13] op=DELTA, candidates=35, valid=35, evaluations=555
+[Beam Iter 13] selected=1, best_agreement=0.7551, best_states=35, n_samples=[15501]
+[Beam Iter 14] op=DELETE+MERGE, candidates=47, valid=47, evaluations=602
+[Beam Iter 14] selected=1, best_agreement=0.7531, best_states=34, n_samples=[6501]
+  [MATA] Wrote 238 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 15] op=DELTA, candidates=34, valid=34, evaluations=636
+[Beam Iter 15] selected=1, best_agreement=0.7526, best_states=34, n_samples=[9501]
+[Beam Iter 16] op=DELETE+MERGE, candidates=47, valid=47, evaluations=683
+[Beam Iter 16] selected=1, best_agreement=0.7486, best_states=33, n_samples=[5501]
+  [MATA] Wrote 231 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 17] op=DELTA, candidates=33, valid=33, evaluations=716
+[Beam Iter 17] selected=1, best_agreement=0.7559, best_states=33, n_samples=[8501]
+[Beam Iter 18] op=DELETE+MERGE, candidates=46, valid=46, evaluations=762
+[Beam Iter 18] selected=1, best_agreement=0.7551, best_states=32, n_samples=[8501]
+  [MATA] Wrote 224 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 19] op=DELTA, candidates=32, valid=32, evaluations=794
+[Beam Iter 19] selected=1, best_agreement=0.7658, best_states=32, n_samples=[4501]
+[Beam Iter 20] op=DELETE+MERGE, candidates=44, valid=44, evaluations=838
+[Beam Iter 20] selected=1, best_agreement=0.7502, best_states=31, n_samples=[9001]
+  [MATA] Wrote 217 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 21] op=DELTA, candidates=31, valid=31, evaluations=869
+[Beam Iter 21] selected=1, best_agreement=0.7529, best_states=31, n_samples=[8001]
+[Beam Iter 22] op=DELETE+MERGE, candidates=44, valid=44, evaluations=913
+[Beam Iter 22] selected=1, best_agreement=0.7430, best_states=30, n_samples=[10501]
+  [MATA] Wrote 210 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 23] op=DELTA, candidates=30, valid=30, evaluations=943
+[Beam Iter 23] selected=1, best_agreement=0.7641, best_states=30, n_samples=[4001]
+[Beam Iter 24] op=DELETE+MERGE, candidates=43, valid=43, evaluations=986
+[Beam Iter 24] selected=1, best_agreement=0.7558, best_states=29, n_samples=[8001]
+  [MATA] Wrote 203 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 25] op=DELTA, candidates=29, valid=29, evaluations=1015
+[Beam Iter 25] selected=1, best_agreement=0.7586, best_states=29, n_samples=[5001]
+[Beam Iter 26] op=DELETE+MERGE, candidates=42, valid=42, evaluations=1057
+[Beam Iter 26] selected=1, best_agreement=0.7527, best_states=28, n_samples=[10001]
+  [MATA] Wrote 196 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 27] op=DELTA, candidates=28, valid=28, evaluations=1085
+[Beam Iter 27] selected=1, best_agreement=0.7662, best_states=28, n_samples=[5501]
+[Beam Iter 28] op=DELETE+MERGE, candidates=41, valid=41, evaluations=1126
+[Beam Iter 28] selected=1, best_agreement=0.7397, best_states=27, n_samples=[10001]
+  [MATA] Wrote 189 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 29] op=DELTA, candidates=27, valid=27, evaluations=1153
+[Beam Iter 29] selected=1, best_agreement=0.7577, best_states=27, n_samples=[5501]
+[Beam Iter 30] op=DELETE+MERGE, candidates=40, valid=40, evaluations=1193
+[Beam Iter 30] selected=1, best_agreement=0.7541, best_states=26, n_samples=[10001]
+  [MATA] Wrote 182 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 31] op=DELTA, candidates=26, valid=26, evaluations=1219
+[Beam Iter 31] selected=1, best_agreement=0.7593, best_states=26, n_samples=[6501]
+[Beam Iter 32] op=DELETE+MERGE, candidates=39, valid=39, evaluations=1258
+[Beam Iter 32] selected=1, best_agreement=0.7454, best_states=25, n_samples=[8501]
+  [MATA] Wrote 175 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 33] op=DELTA, candidates=25, valid=25, evaluations=1283
+[Beam Iter 33] selected=1, best_agreement=0.7522, best_states=25, n_samples=[5501]
+[Beam Iter 34] op=DELETE+MERGE, candidates=38, valid=38, evaluations=1321
+[Beam Iter 34] selected=1, best_agreement=0.7361, best_states=24, n_samples=[9501]
+  [MATA] Wrote 168 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 35] op=DELTA, candidates=24, valid=24, evaluations=1345
+[Beam Iter 35] selected=1, best_agreement=0.7446, best_states=24, n_samples=[8501]
+[Beam Iter 36] op=DELETE+MERGE, candidates=37, valid=37, evaluations=1382
+[Beam Iter 36] selected=1, best_agreement=0.7153, best_states=23, n_samples=[11501]
+  [MATA] Wrote 161 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 37] op=DELTA, candidates=23, valid=23, evaluations=1405
+[Beam Iter 37] selected=1, best_agreement=0.7250, best_states=23, n_samples=[7501]
+[Beam Iter 38] op=DELETE+MERGE, candidates=37, valid=37, evaluations=1442
+[Beam Iter 38] selected=1, best_agreement=0.7178, best_states=22, n_samples=[11001]
+  [MATA] Wrote 154 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 39] op=DELTA, candidates=22, valid=22, evaluations=1464
+[Beam Iter 39] selected=1, best_agreement=0.7140, best_states=22, n_samples=[13501]
+[Beam Iter 40] op=DELETE+MERGE, candidates=37, valid=37, evaluations=1501
+[Beam Iter 40] selected=1, best_agreement=0.7034, best_states=21, n_samples=[10001]
+  [MATA] Wrote 147 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 41] op=DELTA, candidates=21, valid=21, evaluations=1522
+[Beam Iter 41] selected=1, best_agreement=0.7120, best_states=21, n_samples=[9501]
+[Beam Iter 42] op=DELETE+MERGE, candidates=24, valid=24, evaluations=1546
+[Beam Iter 42] selected=1, best_agreement=0.7070, best_states=20, n_samples=[6501]
+  [MATA] Wrote 140 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 43] op=DELTA, candidates=20, valid=20, evaluations=1566
+[Beam Iter 43] selected=1, best_agreement=0.7065, best_states=20, n_samples=[7001]
+[Beam Iter 44] op=DELETE+MERGE, candidates=24, valid=24, evaluations=1590
+[Beam Iter 44] selected=1, best_agreement=0.7133, best_states=19, n_samples=[7001]
+  [MATA] Wrote 133 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 45] op=DELTA, candidates=19, valid=19, evaluations=1609
+[Beam Iter 45] selected=1, best_agreement=0.7182, best_states=19, n_samples=[5501]
+[Beam Iter 46] op=DELETE+MERGE, candidates=24, valid=24, evaluations=1633
+[Beam Iter 46] selected=1, best_agreement=0.7152, best_states=18, n_samples=[7001]
+  [MATA] Wrote 126 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 47] op=DELTA, candidates=18, valid=18, evaluations=1651
+[Beam Iter 47] selected=1, best_agreement=0.7180, best_states=18, n_samples=[9001]
+[Beam Iter 48] op=DELETE+MERGE, candidates=23, valid=23, evaluations=1674
+[Beam Iter 48] selected=1, best_agreement=0.7136, best_states=17, n_samples=[7501]
+  [MATA] Wrote 119 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 49] op=DELTA, candidates=17, valid=17, evaluations=1691
+[Beam Iter 49] selected=1, best_agreement=0.7229, best_states=17, n_samples=[11501]
+[Beam Iter 50] op=DELETE+MERGE, candidates=23, valid=23, evaluations=1714
+[Beam Iter 50] selected=1, best_agreement=0.7370, best_states=16, n_samples=[6001]
+  [MATA] Wrote 112 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 51] op=DELTA, candidates=16, valid=16, evaluations=1730
+[Beam Iter 51] selected=1, best_agreement=0.7598, best_states=16, n_samples=[4501]
+[Beam Iter 52] op=DELETE+MERGE, candidates=23, valid=23, evaluations=1753
+[Beam Iter 52] selected=1, best_agreement=0.7479, best_states=15, n_samples=[5001]
+  [MATA] Wrote 105 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 53] op=DELTA, candidates=15, valid=15, evaluations=1768
+[Beam Iter 53] selected=1, best_agreement=0.7533, best_states=15, n_samples=[4001]
+[Beam Iter 54] op=DELETE+MERGE, candidates=23, valid=23, evaluations=1791
+[Beam Iter 54] selected=1, best_agreement=0.7475, best_states=14, n_samples=[6001]
+  [MATA] Wrote 98 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 55] op=DELTA, candidates=14, valid=14, evaluations=1805
+[Beam Iter 55] selected=1, best_agreement=0.7563, best_states=14, n_samples=[4501]
+[Beam Iter 56] op=DELETE+MERGE, candidates=23, valid=23, evaluations=1828
+[Beam Iter 56] selected=1, best_agreement=0.7751, best_states=13, n_samples=[4001]
+  [MATA] Wrote 91 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 57] op=DELTA, candidates=13, valid=13, evaluations=1841
+[Beam Iter 57] selected=1, best_agreement=0.7697, best_states=13, n_samples=[9001]
+[Beam Iter 58] op=DELETE+MERGE, candidates=23, valid=23, evaluations=1864
+[Beam Iter 58] selected=1, best_agreement=0.7671, best_states=12, n_samples=[4001]
+  [MATA] Wrote 84 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 59] op=DELTA, candidates=12, valid=12, evaluations=1876
+[Beam Iter 59] selected=1, best_agreement=0.7727, best_states=12, n_samples=[7001]
+[Beam Iter 60] op=DELETE+MERGE, candidates=21, valid=21, evaluations=1897
+[Beam Iter 60] selected=1, best_agreement=0.7741, best_states=11, n_samples=[4001]
+  [MATA] Wrote 77 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 61] op=DELTA, candidates=11, valid=11, evaluations=1908
+[Beam Iter 61] selected=1, best_agreement=0.7721, best_states=11, n_samples=[4001]
+[Beam Iter 62] op=DELETE+MERGE, candidates=20, valid=20, evaluations=1928
+[Beam Iter 62] selected=1, best_agreement=0.7671, best_states=10, n_samples=[4001]
+  [MATA] Wrote 70 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 63] op=DELTA, candidates=10, valid=10, evaluations=1938
+[Beam Iter 63] selected=1, best_agreement=0.7787, best_states=10, n_samples=[3001]
+[Beam Iter 64] op=DELETE+MERGE, candidates=20, valid=20, evaluations=1958
+[Beam Iter 64] selected=1, best_agreement=0.7717, best_states=9, n_samples=[3001]
+  [MATA] Wrote 63 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 65] op=DELTA, candidates=9, valid=9, evaluations=1967
+[Beam Iter 65] selected=1, best_agreement=0.7706, best_states=9, n_samples=[3501]
+[Beam Iter 66] op=DELETE+MERGE, candidates=20, valid=20, evaluations=1987
+[Beam Iter 66] selected=1, best_agreement=0.7712, best_states=6, n_samples=[3501]
+  [MATA] Wrote 42 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 67] op=DELTA, candidates=6, valid=6, evaluations=1993
+[Beam Iter 67] selected=1, best_agreement=0.7803, best_states=6, n_samples=[3501]
+[Beam Iter 68] op=DELETE+MERGE, candidates=10, valid=10, evaluations=2003
+[Beam Iter 68] selected=1, best_agreement=0.6756, best_states=5, n_samples=[4001]
+  [MATA] Wrote 35 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 69] op=DELTA, candidates=5, valid=5, evaluations=2008
+[Beam Iter 69] selected=1, best_agreement=0.6935, best_states=5, n_samples=[3501]
+[Beam Iter 70] op=DELETE+MERGE, candidates=6, valid=6, evaluations=2014
+[Beam Iter 70] selected=1, best_agreement=0.6627, best_states=4, n_samples=[3501]
+  [MATA] Wrote 28 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 71] op=DELTA, candidates=4, valid=4, evaluations=2018
+[Beam Iter 71] selected=1, best_agreement=0.6752, best_states=4, n_samples=[3501]
+[Beam Iter 72] op=DELETE+MERGE, candidates=3, valid=3, evaluations=2021
+[Beam Iter 72] selected=1, best_agreement=0.6210, best_states=3, n_samples=[3501]
+  [MATA] Wrote 21 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 73] op=DELTA, candidates=3, valid=3, evaluations=2024
+[Beam Iter 73] selected=1, best_agreement=0.6213, best_states=3, n_samples=[5501]
+[Beam Iter 74] op=DELETE+MERGE, candidates=1, valid=1, evaluations=2025
+[Beam Iter 74] selected=1, best_agreement=0.5928, best_states=2, n_samples=[501]
+  [MATA] Wrote 14 transitions to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/beam/dfa_explicit.mata
+[Beam Iter 75] op=DELTA, candidates=2, valid=2, evaluations=2027
+[Beam Iter 75] selected=1, best_agreement=0.5978, best_states=2, n_samples=[2501]
+[Beam] No candidates proposed. Stopping.
+  [SharedInit] Saved to /home/yihua/anchor-llm/test_result/wafer_ablation_grid/init500/batch500/wafer/instance_00/shared/shared_init.pkl (41 states, 500 training samples, 500 validation samples)
+
+
+  wafer  (clf_train=0.9690  clf_test=0.9487  initial_states=41)
+
+  Initial (RPNI):  train=0.7247  validation=1.0000
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | Method       | Train (Init→Final)   | Validation (Init→Final)  | States     | Time(s)    |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | BeamSearch   | 0.7247→0.7803 ✗      | 1.0000→0.7320            |          6 |      491.2 |
+  | SA           | N/A                  | N/A                      |        N/A |        N/A |
+  | GA           | N/A                  | N/A                      |        N/A |        N/A |
+  | PSO          | N/A                  | N/A                      |        N/A |        N/A |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
