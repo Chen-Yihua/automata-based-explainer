@@ -46,7 +46,7 @@ cd anchor-automata-explainer
 
 sudo apt install build-essential   # 沒有 make/g++ 的話先裝這個
 
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 
 pip install --upgrade pip
