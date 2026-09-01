@@ -46,10 +46,14 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install --upgrade pip
+pip install cmake
 pip install -r requirements.txt
 ```
 
 `requirements.txt` 固定使用 `tensorflow==2.20.0`。若偵測到相容的 NVIDIA 驅動程式，pip 會自動安裝支援 GPU 的版本；若無，則自動退回 CPU 版本，兩種情況皆不需額外安裝 CUDA 工具組或使用 conda-forge。
+
+`libmata`（DELTA 操作用的自動機函式庫）在 PyPI 上只有原始碼包、沒有預編譯 wheel，安裝時會現場用 CMake + C++ 編譯器（`g++`）從原始碼 build，過程要幾分鐘，是正常現象、不是卡住。系統需要有 `g++`（大部分 Linux 發行版都內建，沒有的話 `sudo apt install build-essential`），`cmake` 則靠上面 `pip install cmake` 這行裝好（裝的是 PyPI 上的獨立 cmake 執行檔，不需要另外用系統套件管理員裝）。
+
 
 ## 新增一個 language / dataset
 
