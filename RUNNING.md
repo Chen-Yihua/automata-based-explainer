@@ -63,13 +63,23 @@ python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --bat
 | 欄位 | 說明 |
 |---|---|
 | `method` | beam / sa / ga / pso |
-| `initial_train_acc` / `final_train_acc` | 初始／refined DFA 的 training accuracy |
-| `initial_validation_acc` / `final_validation_acc` | 初始／refined DFA 的 validation accuracy |
+| `initial_train_acc` / `final_train_acc` | 初始／refined DFA 的 training agreement |
+| `initial_validation_acc` / `final_validation_acc` | 初始／refined DFA 的 validation agreement |
 | `states` | final DFA 的 state 數 |
 | `time_s` | 執行時間（秒） |
-| `success` | 是否達到 accuracy threshold |
+| `success` | 是否達到 agreement threshold |
 
 Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Real-world 另有 `clf_train_acc`、`clf_test_acc`、`init_states`。
+
+---
+
+## 5. 確認結果趨勢
+
+本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，比對重現結果時看以下趨勢：
+
+1. beam 的 `time` 大部分最小
+2. beam 整體上能找到 `state` 最少、`agreement` 最高的解
+3. 除了 wafer 任務，其他任務能達 agreement threshold 0.8
 
 ---
 
