@@ -78,8 +78,8 @@ Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Rea
 本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，比對重現結果時看以下趨勢：
 
 1. beam 的 `time` 大部分最小
-2. beam 整體上能找到 `state` 最少、`agreement` 最高的解
-3. 除了 wafer 任務，其他任務能達 agreement threshold 0.8
+2. beam 通常能用較少的 state 數達到門檻，但不是每個任務都同時贏 states 和 agreement
+3. 除了 wafer 任務，其他任務 beam 方法能達 agreement threshold 0.8
 
 ---
 
