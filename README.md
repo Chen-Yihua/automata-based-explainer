@@ -44,13 +44,12 @@ anchor-llm/
 git clone https://github.com/Chen-Yihua/anchor-automata-explainer.git
 cd anchor-automata-explainer
 
+sudo apt install python3.11-dev build-essential cmake
+
 python3.11 -m venv venv
 source venv/bin/activate
 
-sudo apt install python3.11-dev build-essential cmake
-
 pip install --upgrade pip
-pip install cmake
 pip install -r requirements.txt
 ```
 
