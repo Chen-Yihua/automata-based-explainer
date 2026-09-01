@@ -314,7 +314,7 @@ class AutomataBeamSearch:
             futures = []
             for _ in automata_list:
                 if base_seed is not None:
-                    call_rng = random.Random((base_seed, self._sample_call_counter))
+                    call_rng = random.Random(f"{base_seed}:{self._sample_call_counter}")
                     self._sample_call_counter += 1
                     futures.append(executor.submit(self.sample_fcn, num_samples=batch_size, rng=call_rng))
                 else:
