@@ -46,8 +46,8 @@ digraph DFA {
   "s40" [shape=doublecircle];
   "sink" [shape=circle];
   "s0" -> "s1" [label="R"];
-  "s0" -> "s1" [label="U"];
   "s0" -> "s2" [label="D"];
+  "s0" -> "s1" [label="U"];
   "s0" -> "s2" [label="L"];
   "s1" -> "s3" [label="R"];
   "s1" -> "s4" [label="D"];
@@ -65,8 +65,8 @@ digraph DFA {
   "s4" -> "s7" [label="L"];
   "s4" -> "s9" [label="U"];
   "s4" -> "s7" [label="D"];
-  "s5" -> "s10" [label="R"];
   "s5" -> "s5" [label="D"];
+  "s5" -> "s10" [label="R"];
   "s5" -> "s2" [label="L"];
   "s5" -> "s2" [label="U"];
   "s6" -> "s3" [label="R"];
@@ -86,8 +86,8 @@ digraph DFA {
   "s9" -> "s6" [label="L"];
   "s9" -> "s0" [label="U"];
   "s10" -> "s14" [label="D"];
-  "s10" -> "s5" [label="L"];
   "s10" -> "s2" [label="U"];
+  "s10" -> "s5" [label="L"];
   "s10" -> "s15" [label="R"];
   "s11" -> "s12" [label="D"];
   "s11" -> "s0" [label="R"];
@@ -101,8 +101,8 @@ digraph DFA {
   "s13" -> "s28" [label="L"];
   "s13" -> "s19" [label="R"];
   "s13" -> "s29" [label="U"];
-  "s14" -> "s14" [label="L"];
   "s14" -> "s20" [label="D"];
+  "s14" -> "s14" [label="L"];
   "s14" -> "s21" [label="U"];
   "s14" -> "s10" [label="R"];
   "s15" -> "s16" [label="L"];
@@ -127,8 +127,8 @@ digraph DFA {
   "s19" -> "sink" [label="U"];
   "s20" -> "s20" [label="D"];
   "s20" -> "s25" [label="L"];
-  "s20" -> "s23" [label="U"];
   "s20" -> "s2" [label="R"];
+  "s20" -> "s23" [label="U"];
   "s21" -> "s15" [label="D"];
   "s21" -> "s26" [label="L"];
   "s21" -> "s29" [label="R"];
@@ -154,8 +154,8 @@ digraph DFA {
   "s26" -> "s3" [label="L"];
   "s26" -> "sink" [label="R"];
   "s27" -> "s31" [label="L"];
-  "s27" -> "s0" [label="R"];
   "s27" -> "s32" [label="D"];
+  "s27" -> "s0" [label="R"];
   "s27" -> "s10" [label="U"];
   "s28" -> "s10" [label="D"];
   "s28" -> "s1" [label="L"];
@@ -165,14 +165,14 @@ digraph DFA {
   "s29" -> "s38" [label="D"];
   "s29" -> "sink" [label="R"];
   "s29" -> "sink" [label="U"];
-  "s30" -> "s32" [label="L"];
   "s30" -> "s30" [label="D"];
-  "s30" -> "s33" [label="R"];
+  "s30" -> "s32" [label="L"];
   "s30" -> "s32" [label="U"];
+  "s30" -> "s33" [label="R"];
   "s31" -> "s34" [label="D"];
   "s31" -> "s0" [label="R"];
-  "s31" -> "s1" [label="L"];
   "s31" -> "s3" [label="U"];
+  "s31" -> "s1" [label="L"];
   "s32" -> "s35" [label="D"];
   "s32" -> "s36" [label="L"];
   "s32" -> "s25" [label="U"];
@@ -210,7 +210,7 @@ digraph DFA {
   "s40" -> "s1" [label="U"];
   "s40" -> "sink" [label="L"];
   "sink" -> "sink" [label="R"];
-  "sink" -> "sink" [label="U"];
   "sink" -> "sink" [label="D"];
+  "sink" -> "sink" [label="U"];
   "sink" -> "sink" [label="L"];
 }
