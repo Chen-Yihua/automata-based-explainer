@@ -75,7 +75,9 @@ Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Rea
 
 ## 5. 確認結果趨勢
 
-本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，比對重現結果時看以下趨勢：
+對照 `test_result/regular_0.8_1000/`、`test_result/realworld_0.8_1000/`。
+
+本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，所以不要比對到小數點，改看下面這三個趨勢是否一致：
 
 1. beam 的 `time` 大部分最小
 2. beam 通常能用較少的 state 數達到門檻，但不是每個任務都同時贏 states 和 agreement
