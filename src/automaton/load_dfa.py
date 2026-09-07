@@ -14,32 +14,31 @@ from automaton.dfa_utils import get_alphabet
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 AUTOMATA_DIR = os.path.join(PROJECT_ROOT, 'automata')
 
-# Mapping of dot filenames to language names and metadata
+# Mapping of dot filenames to language names and metadata. `states` is
+# intentionally not stored here -- it drifted out of sync with the actual
+# .dot files (hand-counted once, never updated as the files were edited) and
+# nothing in the codebase reads a static count for anything that matters.
+# list_available_automata() below computes it fresh from each file instead.
 AUTOMATA_MAPPING = {
     'secure_handshake.dot': {
         'name': 'SecureHandshake',
         'description': 'Secure handshake protocol DFA',
-        'states': 32,
     },
     'multi_obligation_color_order.dot': {
         'name': 'MultiObligationOrder',
         'description': 'Multi-obligation color ordering',
-        'states': 40,
     },
     'document_release_workflow.dot': {
         'name': 'DocumentReleaseWorkflow',
         'description': 'Document release workflow',
-        'states': 36,
     },
     'lexer_tokenization.dot': {
         'name': 'LexerTokenization',
         'description': 'Lexer tokenization DFA',
-        'states': 50,
     },
     'embedded_controller_workflow.dot': {
         'name': 'EmbeddedControllerWorkflow',
         'description': 'Embedded controller workflow DFA',
-        'states': 35,
     }
 }
 
@@ -86,18 +85,37 @@ def parse_dot_file(dot_path: str) -> Tuple[Dict[str, DfaState], str, set]:
         """Extract unquoted state name from 'state' or state format."""
         return s.strip('"')
     
-    # Extract all explicitly defined states (with shape attribute)
+    # Extract all explicitly defined states (with shape attribute).
+    # `[^\]]*` after the shape lets this also match nodes with extra
+    # Graphviz attributes, e.g. [shape=doublecircle, style=filled, ...] --
+    # matching only [shape=xxx] silently dropped any such node down to the
+    # non-accepting default below, whatever its real shape said.
     explicit_states = {}  # state_name -> is_accepting
-    state_pattern = r'"?(\w+)"?\s*\[shape=([a-z]+)\]'
-    
+    state_pattern = r'(")?(\w+)\1?\s*\[shape=([a-z]+)[^\]]*\]'
+
     for match in re.finditer(state_pattern, content):
-        state_name = extract_state_name(match.group(1))
-        shape = match.group(2)
-        
+        quoted = match.group(1) is not None
+        state_name = extract_state_name(match.group(2))
+        shape = match.group(3)
+
         # Skip special nodes
         if state_name.startswith('__'):
             continue
-        
+
+        # `node [shape=...];` (unquoted) is Graphviz syntax for setting the
+        # default shape of every node declared after it, not a declaration
+        # of an actual state named "node" -- same for `edge`/`graph`. A real
+        # state named "node" would be written quoted ("node" [shape=...]).
+        if not quoted and state_name in ('node', 'edge', 'graph'):
+            continue
+
+        # shape=point marks an invisible anchor for the incoming arrow that
+        # visually indicates the initial state (e.g. `qi [shape=point];
+        # qi -> q0;`) -- not a real automaton state. The actual initial
+        # state is resolved separately below via the qi/__start__ patterns.
+        if shape == 'point':
+            continue
+
         is_accepting = (shape == 'doublecircle')
         explicit_states[state_name] = is_accepting
     
@@ -204,9 +222,14 @@ def load_dfa_from_dot(dot_filename: str) -> Dfa:
     try:
         states_dict, initial_state_name, alphabet = parse_dot_file(dot_path)
     except FileNotFoundError:
+        # List AUTOMATA_MAPPING's static keys here, not
+        # list_available_automata()'s -- that function now calls
+        # load_dfa_from_dot() on every mapped file to compute `states`
+        # dynamically, so calling it from inside load_dfa_from_dot's own
+        # not-found handler would recurse into itself for this exact file.
         raise FileNotFoundError(
             f"DOT file not found: {actual_filename}\n"
-            f"Available files: {list_available_automata().keys()}"
+            f"Available files: {list(AUTOMATA_MAPPING.keys())}"
         )
     except ValueError as e:
         raise ValueError(f"Failed to parse {actual_filename}: {e}")
@@ -246,17 +269,28 @@ def create_automata_dfa_predictor(dfa: Dfa):
         np.ndarray
             Binary predictions [0/1] for each sequence
         """
+        # Walk transitions with a local variable instead of dfa.step()/
+        # reset_to_initial(), which mutate dfa.current_state -- an attribute
+        # on the single shared Dfa instance this closure captures. Called
+        # concurrently (draw_automata_samples_parallel runs this predictor
+        # from several ThreadPoolExecutor threads at once, one per candidate
+        # automaton, under the default parallel=True), those threads would
+        # all reset/step the same dfa.current_state and interleave, so the
+        # accepting check for one thread's sequence could reflect a walk
+        # partly stepped by another thread's sequence. Reading
+        # dfa.initial_state and each state's .transitions dict is safe
+        # concurrently since prediction never modifies the DFA structure.
         predictions = []
         for seq in sequences:
-            dfa.reset_to_initial()
+            current_state = dfa.initial_state
             try:
                 for symbol in seq:
-                    dfa.step(symbol)
-                predictions.append(1 if dfa.current_state.is_accepting else 0)
+                    current_state = current_state.transitions[symbol]
+                predictions.append(1 if current_state.is_accepting else 0)
             except (KeyError, AttributeError):
                 # Symbol not in alphabet or transition not defined
                 predictions.append(0)
-        
+
         return np.array(predictions, dtype=int)
     
     return predictor
@@ -265,13 +299,27 @@ def create_automata_dfa_predictor(dfa: Dfa):
 def list_available_automata() -> Dict[str, Dict]:
     """
     List all available automata in the automata/ folder.
-    
+
+    `states` is computed by actually loading each .dot file rather than
+    stored statically, so it can't drift out of sync the way the old
+    hardcoded counts did. A file missing from automata/ (declared in
+    AUTOMATA_MAPPING but not on disk) gets states=None instead of failing
+    the whole listing.
+
     Returns
     -------
     dict
-        Mapping of language name to metadata
+        Mapping of dot filename to metadata (name, description, states)
     """
-    return AUTOMATA_MAPPING.copy()
+    result = {}
+    for filename, meta in AUTOMATA_MAPPING.items():
+        entry = dict(meta)
+        try:
+            entry['states'] = len(load_dfa_from_dot(filename).states)
+        except Exception:
+            entry['states'] = None
+        result[filename] = entry
+    return result
 
 
 # def get_automata_alphabet(dfa: Dfa) -> List[str]:
