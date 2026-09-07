@@ -218,7 +218,7 @@ def run_baseline(
         init_num_samples=cfg.get("init_num_samples", 1000),
         batch_size=cfg.get("batch_size", 100),
         output_dir=output_dir,
-        max_evaluations=cfg.get("max_evaluations", 500),
+        max_evaluations=cfg.get("max_evaluations"),
     )
 
     if method == "sa":
