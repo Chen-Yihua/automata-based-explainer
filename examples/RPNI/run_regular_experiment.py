@@ -204,7 +204,11 @@ def run_one_automata(automata_code: str, cfg: dict, output_root: str) -> dict | 
         print(f"  [TEACHER] Loading automata DFA: {cfg['filename']}")
         teacher = load_dfa_from_dot(cfg["filename"])
         _ensure_teacher_initial_state(teacher)
-        alphabet = get_alphabet(teacher)
+        # sorted(): get_alphabet() returns a set, whose iteration order depends
+        # on PYTHONHASHSEED -- pin it to a deterministic order so alphabet,
+        # sample generation, and everything downstream stop depending on the
+        # process's hash seed.
+        alphabet = sorted(get_alphabet(teacher))
         predict_fn = create_automata_dfa_predictor(teacher)
         print(f"  DFA: {len(teacher.states)} states, alphabet={alphabet}")
     except Exception as exc:

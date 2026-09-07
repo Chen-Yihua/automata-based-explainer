@@ -65,9 +65,6 @@ DEFAULT_LANGUAGE_CONFIGS = {
         test_instances=None,
         max_length=20,
         embedding_dim=64,
-        hidden_dim=256,
-        num_layers=2,
-        dropout=0.3,
     ),
     "ECG": dict(
         alphabet=["VL", "L", "SL", "M", "SH", "H", "VH"],
@@ -87,9 +84,6 @@ DEFAULT_LANGUAGE_CONFIGS = {
         test_instances=None,
         max_length=20,
         embedding_dim=64,
-        hidden_dim=256,
-        num_layers=2,
-        dropout=0.3,
     ),
     "wafer": dict(
         alphabet=["VL", "L", "SL", "M", "SH", "H", "VH"],
@@ -109,9 +103,6 @@ DEFAULT_LANGUAGE_CONFIGS = {
         test_instances=None,
         max_length=20,
         embedding_dim=64,
-        hidden_dim=256,
-        num_layers=2,
-        dropout=0.3,
     ),
 }
 
@@ -179,6 +170,18 @@ def run_one_language(lang_code: str, cfg: dict, output_root: str) -> dict | None
     )
     clf.load(model_path)
     predict_fn = lambda seqs: clf.predict(seqs)
+
+    # load() rebuilds clf's model entirely from the checkpoint (max_len,
+    # embedding_dim, dropout, and — for RNN checkpoints — rnn_units/num_layers
+    # all get overwritten), so cfg's own copies of these are stale the moment
+    # load() returns. Record the checkpoint's real values back onto cfg so the
+    # "Experiment Parameters" dump at the end of main() logs the teacher that
+    # was actually loaded, not whatever DEFAULT_LANGUAGE_CONFIGS guessed.
+    cfg["max_length"] = clf.max_len
+    cfg["embedding_dim"] = clf.embedding_dim
+    cfg["dropout"] = clf.dropout
+    cfg["hidden_dim"] = getattr(clf, "rnn_units", None)
+    cfg["num_layers"] = getattr(clf, "num_layers", None)
 
     clf_train_acc = accuracy_score(y_train, predict_fn(X_train))
     clf_test_acc = accuracy_score(y_test, predict_fn(X_test))
