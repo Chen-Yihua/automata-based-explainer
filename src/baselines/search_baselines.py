@@ -180,6 +180,15 @@ class PSOAutomataOptimizer:
 
         self.state_metrics: Dict[int, Dict] = {}
         self._init_state_metrics()
+        # state_metrics is keyed by id(dfa), which is a memory address in
+        # CPython. Nothing else keeps every cached DFA alive for the life of
+        # the search, so once one is garbage collected its address can be
+        # reused by an unrelated later DFA -- which would then silently
+        # inherit the old DFA's cached agreement/positives/negatives and
+        # could win _update_gbest on a stale score. Mirrors
+        # AutomataBeamSearch._id_reuse_guard (automata_beam.py), which exists
+        # for exactly this reason.
+        self._id_reuse_guard: List[Any] = []
         self.seen_signatures: set = set()
         self.all_history: List[Dict] = []
         self.seen_ids: set = set()
@@ -293,6 +302,7 @@ class PSOAutomataOptimizer:
             self.state_metrics["t_nsamples"][dfa_id] = float(n_samples)
             self.state_metrics["t_positives"][dfa_id] = float(true_accept)
             self.state_metrics["t_negatives"][dfa_id] = float(true_reject)
+            self._id_reuse_guard.append(dfa)
             agreement = (true_accept + true_reject) / n_samples
 
         num_states = len(dfa.states)
@@ -557,27 +567,37 @@ class PSOAutomataOptimizer:
             print(f"  Initial states: {len(self.initial_dfa.states)}")
             print("  Particle state: current DFA is carried to the next iteration")
 
-        trajectory = []
         stop_reason = ""
-        for _ in range(n_iterations):
-            try:
-                # One pyswarms iteration: it applies its own velocity/position
-                # update to self.positions (via _pyswarms_objective's return
-                # value), then calls _pyswarms_objective again with the new
-                # positions to score them.
-                self._pso_engine.optimize(self._pyswarms_objective, iters=1, verbose=False)
-                trajectory.append(float(self._pso_engine.swarm.best_cost))
-            except RuntimeError as exc:
-                stop_reason = str(exc)
-                if self.verbose:
-                    print(f"[PSO] Optimization stopped: {stop_reason}")
-                break
+        try:
+            # A single call with the full iteration count, not
+            # optimize(iters=1) looped n_iterations times. pyswarms resets
+            # swarm.pbest_cost to inf at the top of every optimize() call
+            # (GlobalBestPSO.optimize, pyswarms 1.3.0) regardless of `iters`,
+            # so calling it once per iteration wiped personal-best memory
+            # every single step: pbest_pos was always just reset-then-
+            # immediately-overwritten with the current position, making the
+            # cognitive term c1*(pbest_pos - position) permanently zero for
+            # the whole run. One call lets pbest persist across iterations
+            # the way PSO is supposed to. Budget / no-improvement early
+            # stopping is unaffected -- _pyswarms_objective already raises
+            # RuntimeError for both cases, which propagates out of pyswarms's
+            # internal iteration loop uncaught, same as before.
+            self._pso_engine.optimize(self._pyswarms_objective, iters=n_iterations, verbose=False)
+        except RuntimeError as exc:
+            stop_reason = str(exc)
+            if self.verbose:
+                print(f"[PSO] Optimization stopped: {stop_reason}")
 
-            if self.max_evaluations is not None and self.evaluations_count >= self.max_evaluations:
-                stop_reason = "PSO budget exhausted"
-                if self.verbose:
-                    print(f"[PSO] Optimization stopped: {stop_reason}")
-                break
+        if not stop_reason and self.max_evaluations is not None and self.evaluations_count >= self.max_evaluations:
+            stop_reason = "PSO budget exhausted"
+            if self.verbose:
+                print(f"[PSO] Optimization stopped: {stop_reason}")
+
+        # pyswarms accumulates one best_cost per internal iteration in its own
+        # cost_history regardless of how many optimize() calls produced it,
+        # so this is the same per-iteration trajectory the old per-iteration
+        # loop assembled manually.
+        trajectory = [float(c) for c in self._pso_engine.cost_history]
 
         if self.gbest_dfa is not None:
             self.gbest_val_agreement = self._compute_validation_agreement(self.gbest_dfa)
