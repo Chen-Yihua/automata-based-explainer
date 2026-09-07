@@ -407,6 +407,21 @@ class PSOAutomataOptimizer:
 
     def _generate_particle_candidates(self, particle_id: int):
         """Generate a local candidate pool from one particle's current DFA."""
+        # Reset per particle, not per iteration or per run: self.seen_signatures
+        # is threaded into _propose_delete_single/_merge_single/_delta_single
+        # (via _apply_operation_to_parent), whose own internal max_attempts=10
+        # retry loop gives up and returns the parent DFA unchanged once every
+        # attempt lands on an already-seen signature. Scoping it any wider
+        # than one particle's own pool here would let one particle's proposals
+        # block another's: each particle explores from its own independent
+        # current_dfas[particle_id], so two particles independently proposing
+        # the same structure is a legitimate outcome (e.g. as the swarm
+        # converges toward gbest late in a run), not a redundant duplicate to
+        # suppress -- unlike GA, where the same parent can legitimately be
+        # selected into a generation's batch more than once via tournament
+        # selection, so sharing the set across that batch is appropriate there.
+        self.seen_signatures = set()
+
         parent_dfa = self.current_dfas[particle_id]
         parent_states = len(parent_dfa.states)
         batch = []
@@ -453,19 +468,6 @@ class PSOAutomataOptimizer:
         per particle exactly as before, and return the per-particle loss so
         pyswarms can update pbest/gbest for the position vectors itself.
         """
-        # Reset per iteration, not per run: self.seen_signatures is threaded
-        # into _propose_delete_single/_merge_single/_delta_single (via
-        # _apply_operation_to_parent), whose own internal max_attempts=10
-        # retry loop gives up and returns the parent DFA unchanged once every
-        # attempt lands on an already-seen signature. Left unreset for the
-        # whole run, this set only grows, so retries increasingly exhaust
-        # against structures seen many iterations ago and particles quietly
-        # stop moving well before the evaluation budget is spent. SA
-        # (move()) and GA (each generation) both use a fresh set at this same
-        # granularity -- this was the one path still sharing state across the
-        # whole run instead of just within one iteration.
-        self.seen_signatures = set()
-
         self.positions = np.asarray(X, dtype=float)
         n_particles = self.n_particles
         losses = np.zeros(n_particles, dtype=float)
