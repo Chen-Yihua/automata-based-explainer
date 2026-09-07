@@ -423,6 +423,8 @@ def _print_one_suite(title: str, suite_results: Dict[str, dict]) -> None:
         header_parts.append(f"clf_train={float(meta['clf_train_acc']):.4f}")
     if meta.get("clf_test_acc") is not None:
         header_parts.append(f"clf_test={float(meta['clf_test_acc']):.4f}")
+    if meta.get("clf_test_acc_novel") is not None:
+        header_parts.append(f"clf_test_novel={float(meta['clf_test_acc_novel']):.4f}")
     if meta.get("teacher_states") is not None:
         header_parts.append(f"teacher_states={int(meta['teacher_states'])}")
     if initial_states:
