@@ -28,6 +28,11 @@ test_result/**
 !test_result/regular_0.8_1000/experiment_log.txt
 pickle/
 
+# Regenerated from test_result/final_result/*/experiment_log.txt via
+# analysis/parse_results.py -- intermediate pass-through, not the deliverable
+# (that's analysis/plots/*.tex, which stay tracked).
+analysis/summary_table.csv
+
 # Vendored but unused (kept on disk, not referenced by any active code)
 external_modules/interpretera/
 
