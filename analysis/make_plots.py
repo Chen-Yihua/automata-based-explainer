@@ -436,20 +436,36 @@ def main():
     rows = load_rows()
     print(f"loaded {len(rows)} rows from {CSV_PATH}")
 
-    figures = {
-        "combo_tau08": combo_figure(rows, threshold=0.8),
-        "combo_tau09": combo_figure(rows, threshold=0.9),
-        "comparison": comparison_figure(rows, threshold=0.8),
-    }
-    for name, tex in figures.items():
+    # Each figure is built and written independently -- a bare dict literal
+    # of the three combo_figure()/comparison_figure() calls evaluates all
+    # three before any of them get written, so one missing threshold (e.g.
+    # only tau=0.8 has been run, per RUNNING.md's quick-start instructions)
+    # raised ValueError partway through and threw away every figure,
+    # including the ones -- like combo_tau08 -- that only needed data
+    # already on disk.
+    figure_specs = [
+        ("combo_tau08", lambda: combo_figure(rows, threshold=0.8)),
+        ("combo_tau09", lambda: combo_figure(rows, threshold=0.9)),
+        ("comparison", lambda: comparison_figure(rows, threshold=0.8)),
+    ]
+
+    written = 0
+    for name, build in figure_specs:
+        try:
+            tex = build()
+        except ValueError as exc:
+            print(f"{name}: skipped ({exc})")
+            continue
+
         tex_path = os.path.join(PLOTS_DIR, f"{name}.tex")
         with open(tex_path, "w", encoding="utf-8") as f:
             f.write(tex)
         png_path = os.path.join(PLOTS_DIR, f"{name}.png")
         rendered = render_png(tex_path, png_path)
         print(f"{name}: done" + (" (+ .png)" if rendered else ""))
+        written += 1
 
-    print(f"\nAll figures written to {PLOTS_DIR}")
+    print(f"\n{written}/{len(figure_specs)} figures written to {PLOTS_DIR}")
 
 
 if __name__ == "__main__":
