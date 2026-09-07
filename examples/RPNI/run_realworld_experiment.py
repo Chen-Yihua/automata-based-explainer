@@ -143,6 +143,28 @@ def get_test_instances(X_train, cfg):
     return [_normalize_sequence(seq) for seq in X_train[:n]]
 
 
+def _novel_test_accuracy(X_train, X_test, y_test, predict_fn):
+    """Test accuracy restricted to test sequences never seen in training.
+
+    The 4-direction stroke symbolization collapses distinct raw inputs (e.g.
+    different digit images) onto the same short symbol sequence, so a split
+    made before symbolizing can still leak identical post-symbolization
+    sequences across train/test -- inflating plain test accuracy with an
+    in-sample component for whatever fraction of the test set that overlaps.
+    Returns (novel_acc, n_novel, n_overlap); novel_acc is None if every test
+    sequence overlaps train.
+    """
+    train_seqs = {tuple(seq) for seq in X_train}
+    novel_idx = [i for i, seq in enumerate(X_test) if tuple(seq) not in train_seqs]
+    n_overlap = len(X_test) - len(novel_idx)
+    if not novel_idx:
+        return None, 0, n_overlap
+    X_novel = [X_test[i] for i in novel_idx]
+    y_novel = [y_test[i] for i in novel_idx]
+    novel_acc = accuracy_score(y_novel, predict_fn(X_novel))
+    return novel_acc, len(novel_idx), n_overlap
+
+
 def run_one_language(lang_code: str, cfg: dict, output_root: str) -> dict | None:
     """Load one neural teacher and run all selected local instances."""
     print(f"\n{'=' * 70}")
@@ -185,7 +207,15 @@ def run_one_language(lang_code: str, cfg: dict, output_root: str) -> dict | None
 
     clf_train_acc = accuracy_score(y_train, predict_fn(X_train))
     clf_test_acc = accuracy_score(y_test, predict_fn(X_test))
+    clf_test_acc_novel, n_novel, n_overlap = _novel_test_accuracy(X_train, X_test, y_test, predict_fn)
     print(f"  Neural Network train={clf_train_acc:.4f}  test={clf_test_acc:.4f}")
+    if n_overlap:
+        novel_str = f"{clf_test_acc_novel:.4f}" if clf_test_acc_novel is not None else "N/A"
+        print(
+            f"    test set has {n_overlap}/{len(X_test)} sequences also present in "
+            f"train (symbolic encoding collapses distinct raw inputs onto the same "
+            f"short sequence) -- test accuracy on the {n_novel} novel sequences only: {novel_str}"
+        )
 
     test_instances = get_test_instances(X_train, cfg)
     print(f"  Selected test instances: {len(test_instances)}")
@@ -210,6 +240,7 @@ def run_one_language(lang_code: str, cfg: dict, output_root: str) -> dict | None
                     "teacher_type": "neural_classifier",
                     "clf_train_acc": float(clf_train_acc),
                     "clf_test_acc": float(clf_test_acc),
+                    "clf_test_acc_novel": (float(clf_test_acc_novel) if clf_test_acc_novel is not None else None),
                     "agreement_threshold": cfg.get("agreement_threshold"),
                 },
             )
