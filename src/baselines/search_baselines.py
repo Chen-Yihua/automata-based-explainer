@@ -9,6 +9,7 @@ learner/pso_optimizer.py dependency to keep synchronized.
 from __future__ import annotations
 import copy
 import gc
+import math
 import os
 import numpy as np
 from scipy.special import softmax as _scipy_softmax
@@ -877,7 +878,17 @@ class DFAAnnealer(Annealer):
         self.no_improve_count = 0
         self.no_improve_threshold = 10  # Stop after 10 consecutive iterations without improvement
         self.last_best_energy = float('inf')
-        
+
+        # Cache of the current state's energy, so move() can report dE to
+        # simanneal directly instead of simanneal falling back to a redundant
+        # self.energy() call (another full agreement pass) after every step.
+        # `_pending_state`/`_pending_energy` hold the last proposal; move()
+        # resolves them against self.state (identity check) on the next call
+        # to learn whether simanneal accepted or reverted it.
+        self._current_energy = None
+        self._pending_state = None
+        self._pending_energy = None
+
         # Initialize parent Annealer with initial_state as argument
         super().__init__(initial_state=initial_dfa.copy())
         self.Tmax = 10.0
@@ -891,15 +902,35 @@ class DFAAnnealer(Annealer):
         In one SA round, generate a pool of neighboring DFAs from the current DFA,
         evaluate every candidate in that pool, and use the lowest-energy candidate
         as the proposal passed to simanneal's Metropolis acceptance rule.
+
+        Returns dE explicitly (rather than None) so simanneal uses it directly
+        instead of calling self.energy() again on self.state, which would redo
+        an agreement evaluation that isn't counted in evaluations_count.
         """
-        if self.evaluations_count >= self.max_evaluations:
+        # Resolve the previous proposal: simanneal leaves self.state untouched
+        # on accept, and replaces it with a fresh deepcopy of prevState on
+        # reject (copy_strategy='deepcopy'), so identity tells us which happened.
+        if self._pending_state is not None:
+            if self.state is self._pending_state:
+                self._current_energy = self._pending_energy
+            self._pending_state = None
+            self._pending_energy = None
+
+        if self._current_energy is None:
+            self._current_energy = self.energy()
+        prev_energy = self._current_energy
+
+        if self.max_evaluations is not None and self.evaluations_count >= self.max_evaluations:
             print(f"[SA] Budget exhausted: {self.evaluations_count} >= {self.max_evaluations}")
             self.user_exit = True
-            return
+            return 0.0
 
         self.iteration_count += 1
-        remaining_budget = self.max_evaluations - self.evaluations_count
-        pool_size = min(self.candidate_pool_size, remaining_budget)
+        if self.max_evaluations is None:
+            pool_size = self.candidate_pool_size
+        else:
+            remaining_budget = self.max_evaluations - self.evaluations_count
+            pool_size = min(self.candidate_pool_size, remaining_budget)
 
         try:
             candidates = _AUTO_INSTANCE.propose_multiple_neighbors(
@@ -917,7 +948,7 @@ class DFAAnnealer(Annealer):
 
         if not candidates:
             print(f"  [SA-iter{self.iteration_count}] Candidate generation failed")
-            return
+            return 0.0
 
         generated_ops = list(getattr(_AUTO_INSTANCE, "last_proposed_ops", []))
         best_candidate = None
@@ -960,15 +991,18 @@ class DFAAnnealer(Annealer):
                 best_candidate_agreement = candidate_train_agreement
                 best_candidate_energy = candidate_energy
 
-            if self.evaluations_count >= self.max_evaluations:
+            if self.max_evaluations is not None and self.evaluations_count >= self.max_evaluations:
                 break
 
         _print_candidate_log("SA", f"iter{self.iteration_count}", candidate_rows, selected_idx=best_candidate_idx)
 
         if best_candidate is None:
-            return
+            return 0.0
 
         self.state = best_candidate
+        dE = best_candidate_energy - prev_energy
+        self._pending_state = best_candidate
+        self._pending_energy = best_candidate_energy
 
         if best_candidate_energy < self.best_energy:
             self.best_dfa = copy.deepcopy(best_candidate)
@@ -986,7 +1020,8 @@ class DFAAnnealer(Annealer):
             if self.no_improve_count >= self.no_improve_threshold:
                 print(f"  [SA] Early stopping: {self.no_improve_count} iterations without improvement")
                 self.user_exit = True
-                return
+
+        return dE
 
     def energy(self):
         """
@@ -1013,20 +1048,21 @@ def sa_dfa_search(data_type: str,
                   steps: int = 500,
                   T_max: float = 10.0,
                   T_min: float = 0.001,
-                  max_evaluations: int = 500,
+                  max_evaluations: Optional[int] = None,
                   sa_candidate_pool_size: int = 5,
                   **kwargs) -> dict:
     """
     Simulated Annealing for DFA search using simanneal.Annealer.
-    
+
     Requires SharedInit from beam search containing initial DFA, validation data, and FIXED training data.
-    
+
     Parameters
     ----------
     shared_init       : SharedInit – from beam search (required, includes training_data/training_labels)
     steps             : int – SA steps
     T_max, T_min      : float – temperature range
-    max_evaluations   : int – max propose_automata() calls (budget limit)
+    max_evaluations   : int | None – max propose_automata() calls (budget limit); None = unlimited,
+                        SA then runs until the schedule cools to T_min or no_improve_threshold triggers
     
     Returns
     -------
@@ -1052,13 +1088,28 @@ def sa_dfa_search(data_type: str,
     )
     annealer.Tmax = T_max
     annealer.Tmin = T_min
-    # Ensure enough total moves to fully consume evaluation budget
-    effective_steps = max(int(steps), int(max_evaluations) + 1)
+    # simanneal cools using step/self.steps, where `step` counts move() calls —
+    # but each move() call consumes sa_candidate_pool_size evaluations, not 1.
+    # So the schedule length must be the number of move() calls the evaluation
+    # budget actually allows, not the raw evaluation count (that previously left
+    # the schedule mostly uncooled by the time the budget ran out). `steps` still
+    # acts as an explicit cap for a shorter-than-budget run. With no budget
+    # (max_evaluations=None), `steps` alone defines the schedule length.
+    if max_evaluations is None:
+        effective_steps = max(1, int(steps))
+    else:
+        moves_for_budget = math.ceil(int(max_evaluations) / int(sa_candidate_pool_size))
+        effective_steps = max(1, min(int(steps), moves_for_budget))
     annealer.steps = effective_steps
-    
+
+    # Seed the move() energy cache from this one-off agreement pass so the
+    # first move() call doesn't need its own redundant self.energy() call.
+    initial_train_agreement_seed = _compute_agreement(initial_dfa, training_data, training_labels)
+    annealer._current_energy = _candidate_loss(initial_train_agreement_seed, initial_states, initial_states)
+
     # Run SA
     print(f"[SA] Running {effective_steps} steps with T_max={T_max}, T_min={T_min}, candidate_pool={sa_candidate_pool_size} (budget={max_evaluations})")
-    print(f"[SA] Initial DFA: {initial_states} states, initial training agreement: {_compute_agreement(initial_dfa, training_data, training_labels):.4f}")
+    print(f"[SA] Initial DFA: {initial_states} states, initial training agreement: {initial_train_agreement_seed:.4f}")
     best_dfa, best_energy = annealer.anneal()
     
     # Prepare all_history with collected candidates
@@ -1084,7 +1135,7 @@ def sa_dfa_search(data_type: str,
     result['initial_val_agreement'] = initial_val_agreement
     result['operator_counts'] = dict(annealer.operator_stats)
     result['evaluations_used'] = int(annealer.evaluations_count)
-    result['max_evaluations'] = int(max_evaluations)
+    result['max_evaluations'] = int(max_evaluations) if max_evaluations is not None else None
     return result
 
 
@@ -1110,7 +1161,7 @@ def ga_dfa_search(data_type: str,
                   output_dir: str = "test_result/ga",
                   population_size: int = 1,
                   tournament_size: int = 2,
-                  max_evaluations: int = 500,
+                  max_evaluations: Optional[int] = None,
                   **kwargs) -> dict:
     """
     Standard Genetic Algorithm for DFA search (no crossover, mutation-only).
@@ -1132,7 +1183,8 @@ def ga_dfa_search(data_type: str,
     shared_init       : SharedInit – from beam search (required, includes training_data/training_labels)
     population_size   : int – fixed population size
     tournament_size   : int – tournament selection size
-    max_evaluations   : int – max candidates generated (budget limit)
+    max_evaluations   : int | None – max candidates generated (budget limit); None = unlimited,
+                        GA then runs until ga_no_improve_threshold generations pass without improvement
     
     Returns
     -------
@@ -1252,12 +1304,15 @@ def ga_dfa_search(data_type: str,
     ga_no_improve_threshold = 10
     ga_best_fitness = -float('inf')
     
-    while evaluations_count < max_evaluations:
+    while max_evaluations is None or evaluations_count < max_evaluations:
         gen += 1
         print(f"\n[GA-Gen] Generation {gen}, evals: {evaluations_count}/{max_evaluations}")
         
         # Calculate how many offspring we can generate with remaining budget
-        offspring_target = min(population_size, max_evaluations - evaluations_count)
+        if max_evaluations is None:
+            offspring_target = population_size
+        else:
+            offspring_target = min(population_size, max_evaluations - evaluations_count)
         
         # Batch select parents
         selected_parents = toolbox.select(population, offspring_target)
@@ -1369,7 +1424,7 @@ def ga_dfa_search(data_type: str,
     result['initial_val_agreement'] = initial_val_agreement
     result['operator_counts'] = dict(operator_stats)
     result['evaluations_used'] = int(evaluations_count)
-    result['max_evaluations'] = int(max_evaluations)
+    result['max_evaluations'] = int(max_evaluations) if max_evaluations is not None else None
     return result
 
 
@@ -1389,23 +1444,26 @@ def pso_dfa_search(data_type: str,
                    output_dir: str = "test_result/pso",
                    beam_size: int = 1,
                    n_particles: int = 10,
-                   max_evaluations: int = 500,
+                   max_evaluations: Optional[int] = None,
                    pso_candidate_pool_size: int = 5,
                    **kwargs) -> dict:
     """
     Particle Swarm Optimisation for DFA search.
-    
+
     Uses the local PSOAutomataOptimizer class for state minimization
     while maintaining agreement above a threshold.
-    
+
     Requires SharedInit from beam search containing initial DFA, validation data, and FIXED training data.
-    
+
     Parameters
     ----------
     shared_init       : SharedInit – from beam search (required, includes training_data/training_labels)
     n_particles       : int – number of particles in swarm
     beam_size         : int – beam_size for candidate generation (not used, kept for compatibility)
-    max_evaluations   : int – controls max iterations
+    max_evaluations   : int – controls max iterations. Unlike SA/GA, PSO has no
+                        budget-independent convergence check, so unlike them this
+                        must be a concrete number (pyswarms needs a fixed iters
+                        count) — None raises rather than running unbounded.
     
     Returns
     -------
@@ -1416,7 +1474,13 @@ def pso_dfa_search(data_type: str,
     
     if shared_init is None:
         raise ValueError("[PSO] FATAL: shared_init is required (from beam search)")
-    
+    if max_evaluations is None:
+        raise ValueError(
+            "[PSO] FATAL: max_evaluations is required for PSO — pyswarms needs a "
+            "fixed iteration count and PSOAutomataOptimizer has no budget-independent "
+            "convergence check, so PSO cannot run unbounded like SA/GA/beam can."
+        )
+
     initial_dfa, initial_states, validation_data, validation_labels, state, training_data, training_labels = _common_init(
         shared_init, batch_size, output_dir
     )
