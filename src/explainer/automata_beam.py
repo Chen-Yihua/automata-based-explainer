@@ -590,6 +590,7 @@ class AutomataBeamSearch:
         reason: str,
         budget_used: int,
         init_automaton_time: float,
+        plot_stats_time: float,
         batch_size: int,
         output_dir: str,
         save_graphs: bool,
@@ -656,6 +657,7 @@ class AutomataBeamSearch:
             "false_reject": final_metadata["false_reject"],
             "true_reject": final_metadata["true_reject"],
             "init_automaton_time": init_automaton_time,
+            "plot_stats_time": plot_stats_time,
         }
 
     # ------------------------------------------------------------------
@@ -700,6 +702,7 @@ class AutomataBeamSearch:
         threshold = 1.0 if agreement_threshold is None else agreement_threshold
 
         init_automaton_time = 0.0
+        plot_stats_time = 0.0
         self.iteration = 0
         self._init_state(batch_size)
 
@@ -767,6 +770,7 @@ class AutomataBeamSearch:
                     "false_reject": [],
                     "true_reject": [],
                     "init_automaton_time": 0.0,
+                    "plot_stats_time": 0.0,
                 }
 
             for candidate in discarded_candidates:
@@ -784,10 +788,12 @@ class AutomataBeamSearch:
         self.automatas = [origin_automaton]
 
         if save_graphs:
+            graphviz_start = time.perf_counter()
             try:
                 dfa_to_graphviz(origin_automaton, filename="initial_automata", output_dir=output_dir)
             except Exception as exc:
                 print(f"  [WARNING] Could not save initial DFA graph: {exc}")
+            init_automaton_time += time.perf_counter() - graphviz_start
 
         # Evaluate initial automaton once to populate state.
         (true_accept,), (true_reject,), (total,), (_accepted,) = self.draw_automata_samples(
@@ -1011,10 +1017,12 @@ class AutomataBeamSearch:
             )
 
         if save_plots and iteration_stats:
+            plot_start = time.perf_counter()
             try:
                 plot_beam_stats(iteration_stats, beam_size, output_dir=output_dir)
             except Exception as exc:
                 print(f"  [WARNING] Could not save beam plot: {exc}")
+            plot_stats_time = time.perf_counter() - plot_start
 
         # Algorithm 2, lines 19-28: final selection over the WHOLE search
         # history (every candidate scored across all iterations, not just the
@@ -1038,6 +1046,7 @@ class AutomataBeamSearch:
                     reason=reason,
                     budget_used=total_candidates_proposed,
                     init_automaton_time=init_automaton_time,
+                    plot_stats_time=plot_stats_time,
                     batch_size=batch_size,
                     output_dir=output_dir,
                     save_graphs=save_graphs,
@@ -1057,6 +1066,7 @@ class AutomataBeamSearch:
                 reason=reason,
                 budget_used=total_candidates_proposed,
                 init_automaton_time=init_automaton_time,
+                plot_stats_time=plot_stats_time,
                 batch_size=batch_size,
                 output_dir=output_dir,
                 save_graphs=save_graphs,
@@ -1071,6 +1081,7 @@ class AutomataBeamSearch:
             reason="No candidates generated during beam search. Returning initial automaton.",
             budget_used=total_candidates_proposed if total_candidates_proposed > 0 else 1,
             init_automaton_time=init_automaton_time,
+            plot_stats_time=plot_stats_time,
             batch_size=batch_size,
             output_dir=output_dir,
             save_graphs=save_graphs,
