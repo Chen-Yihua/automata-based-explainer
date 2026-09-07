@@ -77,6 +77,7 @@ def make_sampler(
         edit_distance=cfg.get("edit_distance", 1),
         use_prediction_cache=cfg.get("use_prediction_cache", True),
         prediction_cache_max_size=cfg.get("prediction_cache_max_size", 200000),
+        max_len=cfg.get("max_length"),
     )
     sampler.set_instance_label(list(test_instance))
     sampler.set_n_covered(cfg.get("n_covered", 10))
