@@ -751,7 +751,9 @@ def _select_final(all_history: list,
                   initial_states: int,
                   output_dir: str,
                   validation_data: list = None,
-                  validation_labels: np.ndarray = None) -> dict:
+                  validation_labels: np.ndarray = None,
+                  training_data: list = None,
+                  training_labels: np.ndarray = None) -> dict:
     """
     Select the final automaton from all evaluated candidates.
 
@@ -807,11 +809,16 @@ def _select_final(all_history: list,
 
     if not all_history:
         print("  [SELECT] No candidates – returning initial DFA.")
-        initial_train = _compute_agreement(initial_dfa, validation_data if validation_data is not None else [], validation_labels if validation_labels is not None else [])
+        # training_agreement must come from training_data, not validation_data
+        # -- they're different splits and callers rely on this field actually
+        # meaning training agreement (e.g. comparing it against the Init/Final
+        # training-agreement columns other code paths report).
+        initial_train = _compute_agreement(initial_dfa, training_data if training_data is not None else [], training_labels if training_labels is not None else [])
+        initial_val = _compute_agreement(initial_dfa, validation_data if validation_data is not None else [], validation_labels if validation_labels is not None else [])
         return {
             "automata": initial_dfa,
             "training_agreement": initial_train,
-            "validation_agreement": initial_train,
+            "validation_agreement": initial_val,
             "size": _state_count(initial_dfa),
             "initial_states": initial_states,
             "coverage": [],
@@ -1148,7 +1155,8 @@ def sa_dfa_search(data_type: str,
     result = _select_final(
         all_history, select_by, agreement_threshold, state_threshold,
         "DFA", initial_dfa, initial_states, output_dir,
-        validation_data=validation_data, validation_labels=validation_labels
+        validation_data=validation_data, validation_labels=validation_labels,
+        training_data=training_data, training_labels=training_labels,
     )
     result['initial_states'] = initial_states  # Add missing initial_states to result
     result['initial_train_agreement'] = initial_train_agreement
@@ -1367,17 +1375,28 @@ def ga_dfa_search(data_type: str,
             evaluations_count += len(offspring)
         except Exception as e:
             print(f"    [GA-Batch] Parallel evaluation failed, falling back to sequential: {e}")
-            for ind in offspring:
+            for cand_idx, ind in enumerate(offspring):
                 try:
                     fit = toolbox.evaluate(ind)
                     ind.fitness.values = _as_fitness_tuple(fit)
                     evaluations_count += 1
                 except Exception as exc:
                     print(f"      [Warning] Sequential evaluation failed: {exc}")
-                    # Last resort: use parent's fitness
-                    if len(population) > 0:
-                        best_ind = max(population, key=lambda x: x.fitness.values[0])
-                        ind.fitness.values = best_ind.fitness.values
+                    # Last resort: use this offspring's own parent's fitness
+                    # (offspring[i] was mutated from selected_parents[i], see
+                    # the loop above that builds `candidates`) -- not the
+                    # population's best individual. Using the population elite
+                    # here previously let a never-evaluated DFA inherit an
+                    # elite fitness score, distorting selection and masking
+                    # early-stopping stagnation. Fall back to the worst
+                    # possible fitness if even the parent's fitness is
+                    # somehow invalid, so a bad candidate looks bad rather
+                    # than silently good.
+                    parent = selected_parents[cand_idx] if cand_idx < len(selected_parents) else None
+                    if parent is not None and getattr(parent, "fitness", None) and parent.fitness.valid:
+                        ind.fitness.values = parent.fitness.values
+                    else:
+                        ind.fitness.values = _as_fitness_tuple(-float("inf"))
         
         gen_rows = []
         selected_idx = None
@@ -1437,7 +1456,8 @@ def ga_dfa_search(data_type: str,
     result = _select_final(
         all_history, select_by, agreement_threshold, state_threshold,
         "DFA", initial_dfa, initial_states, output_dir,
-        validation_data=validation_data, validation_labels=validation_labels
+        validation_data=validation_data, validation_labels=validation_labels,
+        training_data=training_data, training_labels=training_labels,
     )
     result['initial_states'] = initial_states  # Add missing initial_states to result
     result['initial_train_agreement'] = initial_train_agreement
@@ -1547,7 +1567,8 @@ def pso_dfa_search(data_type: str,
         result = _select_final(
             all_history, select_by, agreement_threshold, state_threshold,
             "DFA", initial_dfa, initial_states, output_dir,
-            validation_data=validation_data, validation_labels=validation_labels
+            validation_data=validation_data, validation_labels=validation_labels,
+            training_data=training_data, training_labels=training_labels,
         )
         result['initial_states'] = initial_states
         return result
@@ -1591,7 +1612,29 @@ def pso_dfa_search(data_type: str,
         print(f"[PSO WARNING] Optimization failed: {e}")
         import traceback
         traceback.print_exc()
-    
+        # optimizer.all_history accumulates one entry per candidate as
+        # _pyswarms_objective evaluates it, throughout the whole run -- it's
+        # populated continuously, not just when optimize() returns normally.
+        # A crash here means optimize() never reached its own `return {...,
+        # "all_history": self.all_history, ...}`, so the loop above that
+        # would normally copy it into this function's all_history never ran
+        # either. Recover it directly from the (still-alive) optimizer
+        # instead of falling through to _select_final([]) and reporting "No
+        # candidates generated" when candidates were, in fact, generated.
+        recovered = getattr(optimizer, "all_history", None) or []
+        if recovered:
+            print(f"[PSO] Recovering {len(recovered)} candidate(s) evaluated before the failure")
+            for candidate in recovered:
+                try:
+                    _AUTO_INSTANCE.add_to_history(
+                        all_history, seen_ids, candidate['automata'],
+                        candidate.get('training_agreement', 0.0),
+                        candidate.get('validation_agreement', 0.0),
+                        use_automata_key=True,
+                    )
+                except Exception:
+                    continue
+
     print(f"\n[PSO] Total candidates collected: {len(all_history)}")
     _print_operator_summary(
         "PSO",
@@ -1605,7 +1648,8 @@ def pso_dfa_search(data_type: str,
     result = _select_final(
         all_history, select_by, agreement_threshold, state_threshold,
         "DFA", initial_dfa, initial_states, output_dir,
-        validation_data=validation_data, validation_labels=validation_labels
+        validation_data=validation_data, validation_labels=validation_labels,
+        training_data=training_data, training_labels=training_labels,
     )
     result['initial_states'] = initial_states
     result['initial_train_agreement'] = initial_train_agreement
