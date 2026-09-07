@@ -56,7 +56,7 @@ def main():
         f"random_segment_length={random_segment_length})..."
     )
     X_train, X_test, y_train, y_test = load_EGG_sequences(
-        data_dir=os.path.join(PROJECT_ROOT, 'datasets', 'ECG5000'),
+        data_dir=os.path.join(PROJECT_ROOT, 'dataset', 'ECG5000'),
         alphabet_size=alphabet_size,
         discretize_method=discretize_method,
         use_paa=use_paa,

@@ -44,6 +44,7 @@ def main():
     )
 
     X_train, X_test, y_train, y_test = load_mnist_stroke_sequences(
+        data_path=os.path.join(PROJECT_ROOT, "dataset", "mnist-digits-as-stroke-sequences", "mnist_strokes.pkl"),
         allow_segment=True,
         n_segments=base_segments,
         base_segments=base_segments,

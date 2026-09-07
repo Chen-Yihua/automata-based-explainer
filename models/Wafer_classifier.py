@@ -60,7 +60,7 @@ def main():
     print("\nLoading Wafer symbolic sequences...")
     print(f"Compressed length setting: [{base_segments - segment_radius}, {base_segments + segment_radius}]")
     X_train, X_test, y_train, y_test = load_Wafer_sequences(
-        data_dir=os.path.join(PROJECT_ROOT, 'datasets', 'Wafer'),
+        data_dir=os.path.join(PROJECT_ROOT, 'dataset', 'Wafer'),
         alphabet_size=alphabet_size,
         discretize_method=discretize_method,
         use_paa=use_paa,
