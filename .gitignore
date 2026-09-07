@@ -36,6 +36,9 @@ tests/
 examples/**/*.log
 examples/**/*.txt
 
+# Not tracked (kept locally only)
+examples/RPNI/run_kllucb_comparison.py
+
 # OS
 .DS_Store
 Thumbs.db
