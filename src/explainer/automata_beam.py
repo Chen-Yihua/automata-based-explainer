@@ -502,8 +502,6 @@ class AutomataBeamSearch:
         t = 1
         crit_a_idx = self.select_critical_arms(means, ub, lb, n_samples, delta, top_n, t)
         bound_gap = ub[crit_a_idx.ut] - lb[crit_a_idx.lt]
-        prev_gap = bound_gap
-        no_improvement_count = 0
 
         while bound_gap > epsilon and t < max_rounds:
             selected_automata = [automata_list[idx] for idx in crit_a_idx]
@@ -517,23 +515,7 @@ class AutomataBeamSearch:
 
             means = self._agreements_from_stats(init_stats)
             crit_a_idx = self.select_critical_arms(means, ub, lb, n_samples, delta, top_n, t)
-            new_gap = ub[crit_a_idx.ut] - lb[crit_a_idx.lt]
-
-            relative_improvement = (prev_gap - new_gap) / prev_gap if prev_gap > 0 else 0.0
-            if relative_improvement < 0.01:
-                no_improvement_count += 1
-                if no_improvement_count >= 10 and new_gap <= 2 * epsilon:
-                    if verbose:
-                        print(
-                            f"  [KL-LUCB] Early stop at round {t}: "
-                            f"B={new_gap:.6f}, eps={epsilon:.6f}"
-                        )
-                    break
-            else:
-                no_improvement_count = 0
-
-            prev_gap = new_gap
-            bound_gap = new_gap
+            bound_gap = ub[crit_a_idx.ut] - lb[crit_a_idx.lt]
             t += 1
 
         return np.argsort(means)[-top_n:]
