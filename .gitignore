@@ -17,8 +17,17 @@ build/
 site-packages/
 
 test_result/
-external_modules/
 pickle/
+
+# Vendored but unused (kept on disk, not referenced by any active code)
+external_modules/interpretera/
+
+# Vendored CXp solver: only language/explain.py (+ __init__.py) is actually
+# used (loaded dynamically via importlib in src/learner/dfa_learner.py).
+# Everything else here (main.py, dpi_explain.py, solve_maze.py, corpus/dna
+# example data) is the upstream repo's own CLI tools/sample data, unused by
+# this project -- ignored, with the two used files force-added instead.
+external_modules/Explaining-FA/
 
 # Test files
 tests/
