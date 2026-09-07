@@ -115,6 +115,18 @@ def get_languages_config(overrides=None):
             for key, value in overrides.items():
                 if value is not None:
                     cfg[key] = value
+            # Every DEFAULT_LANGUAGE_CONFIGS entry pins a fixed test_instance,
+            # which run_one_automata's selection (test_instances > test_instance
+            # > num_test_instances-driven generation) always prefers over
+            # num_test_instances -- so passing --num_test_instances alone used
+            # to silently do nothing. Explicitly passing it on the CLI is a
+            # clear signal to actually use that many generated instances, so
+            # drop the fixed one(s) for this run only. DEFAULT_LANGUAGE_CONFIGS
+            # itself is untouched, so runs without --num_test_instances keep
+            # using the fixed instance exactly as before.
+            if overrides.get("num_test_instances") is not None:
+                cfg["test_instance"] = None
+                cfg["test_instances"] = None
     return configs
 
 
