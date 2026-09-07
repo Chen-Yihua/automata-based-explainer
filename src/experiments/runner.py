@@ -336,6 +336,7 @@ def run_search_suite(
     meta.setdefault("initial_states", initial_states)
     results["_meta"] = meta
 
+    beam_evaluations_used = beam_raw.get("budget_used")
     results["beam"] = {
         "method": "beam",
         "initial_train_agreement": initial_train,
@@ -347,6 +348,7 @@ def run_search_suite(
         "time": beam_elapsed,
         "wall_time": beam_wall_time,
         "excluded_overhead_time": beam_overhead,
+        "evaluations_used": beam_evaluations_used,
         "success": bool(beam_raw.get("success", False)),
         "reason": beam_raw.get("reason", ""),
         "raw": beam_raw,
@@ -372,13 +374,28 @@ def run_search_suite(
             save_shared_init(shared, output_dir)
         except Exception as exc:
             print(f"  [WARNING] Could not save shared_init.pkl: {exc}")
+
+    # Give SA/GA/PSO the same evaluation budget beam actually spent on this
+    # instance, instead of a fixed constant from cfg: beam can converge (or
+    # give up) well short of cfg["max_evaluations"] via its own stopping
+    # conditions (KL-LUCB bound closing, no more states to delete, agreement
+    # threshold reached), and a fixed baseline cap disconnected from that
+    # would silently let baselines search more (or less) than beam actually
+    # did on that particular instance. cfg["max_evaluations"] remains the
+    # ceiling beam itself is capped at; only the baselines' copy is
+    # overridden here.
+    baseline_cfg = dict(cfg)
+    if beam_evaluations_used:
+        baseline_cfg["max_evaluations"] = int(beam_evaluations_used)
+        print(f"  [Baseline budget] Using beam's actual evaluations ({beam_evaluations_used}) as SA/GA/PSO max_evaluations")
+
     for method in methods:
         if method == "beam":
             continue
         results[method] = run_baseline(
             method=method,
             shared=shared,
-            cfg=cfg,
+            cfg=baseline_cfg,
             output_dir=os.path.join(output_dir, method),
         )
 
@@ -441,6 +458,9 @@ def _print_one_suite(title: str, suite_results: Dict[str, dict]) -> None:
         return
 
     print(f"\n  Initial (RPNI):  train={initial_train:.4f}  validation={initial_val:.4f}")
+    beam_evals = beam.get("evaluations_used")
+    if beam_evals:
+        print(f"  Beam evaluations used: {int(beam_evals)}  (SA/GA/PSO max_evaluations budget)")
     print("  " + "─" * 96)
     print(
         f"  | {'Method':12s} | {'Train (Init→Final)':20s} | "
