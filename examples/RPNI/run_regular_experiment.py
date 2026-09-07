@@ -6,10 +6,20 @@ Beam / SA / GA / PSO logic lives in experiments.runner.
 """
 from __future__ import annotations
 
-import argparse
 import os
-import random
 import sys
+
+# Python's hash randomization (PYTHONHASHSEED) is enabled by default and
+# differs every process launch, which changes iteration order for any
+# string-keyed set()/dict() (alphabet symbols, state signatures, ...) --
+# random.seed(42) alone does NOT control this. Re-exec once with a pinned
+# seed so repeated runs of this script are bit-for-bit reproducible.
+if os.environ.get("PYTHONHASHSEED") != "0":
+    os.environ["PYTHONHASHSEED"] = "0"
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+import argparse
+import random
 import traceback
 
 import numpy as np
@@ -263,28 +273,23 @@ def parse_args():
     parser.add_argument("--max_length", type=int, default=None)
     parser.add_argument("--max_evaluations", type=int, default=None)
     parser.add_argument("--num_test_instances", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for global RNG + DFASampler construction. Default: 42.")
     parser.add_argument("--parallel", dest="parallel", action="store_true", default=None, help="Enable parallel KL-LUCB sampling/agreement evaluation.")
     parser.add_argument("--no_parallel", dest="parallel", action="store_false", help="Disable parallel KL-LUCB sampling/agreement evaluation.")
     parser.add_argument("--n_jobs", type=int, default=None, help="Number of worker threads for KL-LUCB sampling/agreement evaluation.")
     parser.add_argument("--no_prediction_cache", dest="use_prediction_cache", action="store_false", default=None, help="Disable teacher prediction cache.")
     parser.add_argument("--prediction_cache_max_size", type=int, default=None, help="Maximum cached teacher predictions. Use 0 for unlimited.")
-    parser.add_argument(
-        "--output_suffix",
-        type=str,
-        default="",
-        help=(
-            "Appended to the auto-derived output folder name "
-            "(test_result/regular_{threshold}_{batch_size}{output_suffix}). "
-            "Use this to avoid colliding with an existing run when overriding "
-            "a parameter (e.g. --beam_size) that isn't part of the folder name."
-        ),
-    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
     overrides = {
+        "seed": args.seed,
         "agreement_threshold": args.agreement_threshold,
         "delta": args.delta,
         "tau": args.tau,
@@ -315,15 +320,8 @@ def main() -> None:
     agreement_threshold = first_cfg["agreement_threshold"]
     batch_size = first_cfg["batch_size"]
     output_root = os.path.join(
-        PROJECT_ROOT, "test_result", f"regular_{agreement_threshold}_{batch_size}{args.output_suffix}"
+        PROJECT_ROOT, "test_result", f"regular_{agreement_threshold}_{batch_size}"
     )
-    if os.path.exists(output_root):
-        raise FileExistsError(
-            f"Output root already exists: {output_root}\n"
-            "Refusing to run into an existing results folder (would overwrite "
-            "prior results). Pass --output_suffix to pick a different folder, "
-            "or remove/move the existing one first if you intend to replace it."
-        )
     os.makedirs(output_root, exist_ok=True)
     log_path = os.path.join(output_root, "experiment_log.txt")
 

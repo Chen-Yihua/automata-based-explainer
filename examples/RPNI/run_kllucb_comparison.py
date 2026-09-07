@@ -1140,19 +1140,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--parallel", dest="parallel", action="store_true", default=None, help="Enable parallel KL-LUCB sampling/agreement evaluation.")
     parser.add_argument("--no_parallel", dest="parallel", action="store_false", help="Disable parallel KL-LUCB sampling/agreement evaluation (use for bit-for-bit reproducible runs).")
     parser.add_argument("--n_jobs", type=int, default=None, help="Number of worker threads for KL-LUCB sampling/agreement evaluation.")
-    parser.add_argument(
-        "--output_suffix",
-        type=str,
-        default="",
-        help=(
-            "Appended to the auto-derived output folder name "
-            "(test_result/kllucb_{threshold}_{batch_size}{output_suffix}). "
-            "Use this to avoid colliding with an existing run when overriding "
-            "--agreement_threshold to a value a task doesn't natively use "
-            "(e.g. running real-world tasks at threshold=0.9 alongside their "
-            "native 0.8 run)."
-        ),
-    )
     return parser.parse_args()
 
 
@@ -1188,15 +1175,8 @@ def main() -> None:
     threshold_tag = f"{agreement_threshold:g}"
 
     output_root = os.path.join(
-        PROJECT_ROOT, "test_result", f"kllucb_{threshold_tag}_{batch_size}{args.output_suffix}"
+        PROJECT_ROOT, "test_result", f"kllucb_{threshold_tag}_{batch_size}"
     )
-    if os.path.exists(output_root):
-        raise FileExistsError(
-            f"Output root already exists: {output_root}\n"
-            "Refusing to run into an existing results folder (would overwrite "
-            "prior results). Pass --output_suffix to pick a different folder, "
-            "or remove/move the existing one first if you intend to replace it."
-        )
     os.makedirs(output_root, exist_ok=True)
 
     log_path = os.path.join(output_root, "comparison.log")
