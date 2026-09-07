@@ -338,7 +338,16 @@ class AutomataBeamSearch:
                 worker_results.append((automaton, raw_data, labels, fut.result()))
         except Exception:
             # Fallback keeps the method usable when a candidate or automaton
-            # cannot be pickled cleanly for process-based scoring.
+            # cannot be pickled cleanly for process-based scoring. Reset
+            # worker_results first: if the try block failed partway through
+            # (some fut.result() calls already appended before one raised),
+            # this loop re-scores every automaton in automata_list from
+            # scratch, so leaving those partial entries in place would
+            # duplicate them -- worker_results would end up with N+k entries
+            # instead of N, which the shape-fixed `positives[idx] += ...`
+            # (and friends) below callers rely on would reject with a
+            # ValueError.
+            worker_results = []
             self._process_pool = None
             for automaton, (raw_data, labels) in zip(automata_list, sampled_batches):
                 stats = compute_acceptance_stats(
