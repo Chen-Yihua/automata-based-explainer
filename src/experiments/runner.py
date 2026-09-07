@@ -26,6 +26,19 @@ from baselines.search_baselines import SharedInit, ga_dfa_search, pso_dfa_search
 DEFAULT_METHODS = ("beam", "sa", "ga", "pso")
 
 
+class NoInitialDFAError(RuntimeError):
+    """Beam search never produced a usable initial DFA (see `.reason`).
+
+    SA/GA/PSO can't run without it (they share beam's initial DFA via
+    SharedInit), so callers should treat this as "skip this instance",
+    not a generic crash.
+    """
+
+    def __init__(self, reason: str):
+        self.reason = reason
+        super().__init__(f"Beam search did not produce an initial DFA: {reason}")
+
+
 def _scalar(value: Any, default: float = 0.0) -> float:
     if value is None:
         return default
@@ -115,12 +128,18 @@ def build_shared_init(
 ) -> SharedInit:
     """Build the shared object required by SA / GA / PSO.
 
-    training_data/training_labels are the exact first batch of samples Beam
-    Search drew to evaluate the initial (origin) automaton, before KL-LUCB's
-    adaptive sampling grows the pool further. AutomataBeamSearch.state["data"]
-    / ["labels"] accumulate every draw made during the whole search in order,
-    so the first `batch_size` entries are precisely that pre-growth batch.
-    SA/GA/PSO then hold this batch fixed for every candidate they evaluate.
+    training_data/training_labels are the first `batch_size` samples drawn,
+    in draw order, from AutomataBeamSearch.state["data"]/["labels"] (which
+    accumulate every draw made during the whole search). In the normal case
+    this is exactly the one batch Beam Search drew to evaluate the initial
+    (origin) automaton, before KL-LUCB's adaptive sampling grows the pool
+    further. It is only that single clean batch as long as the sampler
+    returns a full batch on that first draw; if the local neighborhood is so
+    small that DFASampler.perturbation under-fills a batch, these are instead
+    the first `batch_size` entries spanning that draw plus the start of the
+    next one (still label-aligned, but no longer literally one sampling call,
+    and it may contain duplicate sequences). SA/GA/PSO then hold this batch
+    fixed for every candidate they evaluate.
     """
     automata_pair = beam_result.get("automata") or []
     if automata_pair and automata_pair[0] is not None:
@@ -128,7 +147,7 @@ def build_shared_init(
     elif beam_search.automatas:
         initial_dfa = beam_search.automatas[0].copy()
     else:
-        raise ValueError("Beam search did not produce an initial DFA.")
+        raise NoInitialDFAError(beam_result.get("reason") or "unknown reason")
 
     batch_size = cfg.get("batch_size", 100)
     training_data = list(beam_search.state["data"][:batch_size])
@@ -301,7 +320,15 @@ def run_search_suite(
 
     start = time.time()
     beam_search, beam_raw = run_beam(sampler, cfg, output_dir)
-    beam_elapsed = time.time() - start
+    beam_wall_time = time.time() - start
+    # Exclude the beam-only overhead that baseline runs don't pay: building the
+    # initial DFA via RPNI (up to max_init_attempts resamples) plus rendering
+    # the initial-DFA graph and the per-iteration stats plot. Baselines reuse
+    # beam's already-built initial DFA (via SharedInit) and only pay for one
+    # final graphviz render + validation eval, same as beam's own final steps,
+    # so those are left in both and not subtracted here.
+    beam_overhead = _scalar(beam_raw.get("init_automaton_time")) + _scalar(beam_raw.get("plot_stats_time"))
+    beam_elapsed = max(0.0, beam_wall_time - beam_overhead)
     initial_train = _scalar(beam_raw.get("initial_training_agreement"))
     initial_val = _scalar(beam_raw.get("initial_validation_agreement"))
     initial_states = _state_count(beam_raw.get("initial_state"))
@@ -317,12 +344,28 @@ def run_search_suite(
         "validation_agreement": _scalar(beam_raw.get("final_validation_agreement")),
         "states": _state_count(beam_raw.get("final_state")),
         "time": beam_elapsed,
+        "wall_time": beam_wall_time,
+        "excluded_overhead_time": beam_overhead,
         "success": bool(beam_raw.get("success", False)),
         "reason": beam_raw.get("reason", ""),
         "raw": beam_raw,
     }
 
-    shared = build_shared_init(beam_search, beam_raw, cfg)
+    try:
+        shared = build_shared_init(beam_search, beam_raw, cfg)
+    except NoInitialDFAError as exc:
+        # Not a crash: beam legitimately couldn't build an initial DFA in
+        # init_state_range (often because this instance's true local behavior
+        # near the teacher is simpler than the range assumes, so resampling
+        # within max_init_attempts can't fix it). SA/GA/PSO need beam's
+        # initial DFA, so they can't run either; skip them and say why, instead
+        # of the caller's generic except-and-traceback treating this the same
+        # as an actual bug.
+        print(f"  [SKIP] {exc}")
+        meta["skipped"] = True
+        meta["skip_reason"] = exc.reason
+        return results
+
     if cfg.get("save_shared_init", True):
         try:
             save_shared_init(shared, output_dir)
@@ -389,6 +432,10 @@ def _print_one_suite(title: str, suite_results: Dict[str, dict]) -> None:
         print(f"  {dataset_name}  ({'  '.join(header_parts)})")
     else:
         print(f"  {dataset_name}")
+
+    if meta.get("skipped"):
+        print(f"\n  [SKIPPED] {meta.get('skip_reason', 'beam produced no initial DFA')}")
+        return
 
     print(f"\n  Initial (RPNI):  train={initial_train:.4f}  validation={initial_val:.4f}")
     print("  " + "─" * 96)
