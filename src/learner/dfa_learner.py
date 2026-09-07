@@ -283,12 +283,20 @@ class DFASampler:
         edit_distance: int = 1,
         use_prediction_cache: bool = True,
         prediction_cache_max_size: int | None = 200000,
+        max_len: int | None = None,
     ):
 
         self.predictor = predictor
         self.alphabet = list(alphabet or [])
         self.edit_distance = edit_distance
         self.seed = seed
+        # Teacher's fixed input length, if it has one (e.g. SequenceClassifier
+        # silently truncates anything longer). Caps "insert" perturbations so
+        # the edit-distance neighborhood never produces a sample the teacher
+        # can't actually see in full -- see perturbation() below. None means
+        # the teacher has no such limit (e.g. a DFA teacher), so growth is
+        # unrestricted, matching prior behavior.
+        self.max_len = max_len
         self.instance = None
         self.instance_label = None
         self.n_covered_ex = 10
@@ -440,13 +448,17 @@ class DFASampler:
         """
         _r = rng if rng is not None else random
 
-        symbols = self.alphabet if self.alphabet else list(set(self.instance))
+        symbols = self.alphabet if self.alphabet else sorted(set(self.instance))
         if not symbols:
             raise ValueError(
                 "DFASampler requires a non-empty alphabet or non-empty instance."
             )
 
-        local_paths_set = set()
+        # dict, not set: only used for O(1) membership/dedup, but a plain set's
+        # iteration order depends on PYTHONHASHSEED. A dict keeps insertion
+        # order (driven by the seeded RNG _r, not string hashes), so the
+        # sample order returned below stays reproducible across processes.
+        local_paths_set: dict = {}
 
         max_trials = 10000
         no_progress_count = 0
@@ -465,7 +477,10 @@ class DFASampler:
 
             while remaining_edits > 0:
 
-                possible_ops = ["replace", "insert"]
+                possible_ops = ["replace"]
+
+                if self.max_len is None or len(new_instance) < self.max_len:
+                    possible_ops.append("insert")
 
                 if len(new_instance) > 0:
                     possible_ops.append("delete")
@@ -504,7 +519,7 @@ class DFASampler:
 
             before = len(local_paths_set)
 
-            local_paths_set.add(hashable)
+            local_paths_set[hashable] = None
 
             if len(local_paths_set) == before:
                 no_progress_count += 1
