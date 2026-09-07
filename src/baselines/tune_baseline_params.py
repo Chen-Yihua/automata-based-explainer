@@ -141,12 +141,23 @@ def extract_result_metrics(result: dict) -> dict:
 
     return {
         "states": int(states) if states else 0,
+        "initial_states": int(result.get("initial_states", 0) or 0),
         "agreement": agreement,
         "validation_agreement": validation_agreement,
         "evaluations_used": int(result.get("evaluations_used", 0) or 0),
         "max_evaluations": int(result.get("max_evaluations", MAX_EVALUATIONS) or MAX_EVALUATIONS),
         "operator_counts": result.get("operator_counts", {}),
     }
+
+
+def _normalized_loss(agreement: float, states: int, initial_states: int) -> float:
+    """Same normalized objective SA/GA/PSO already optimize internally
+    (search_baselines._candidate_loss): -agreement + states/initial_states.
+    Different tasks have very different initial_states, so raw state counts
+    aren't comparable across tasks -- this puts them on a shared scale before
+    averaging across the six tasks in write_best_by_algo_cross_task_table."""
+    initial_states = max(1, int(initial_states))
+    return -float(agreement) + float(states) / initial_states
 
 
 def load_shared_init_from_disk(output_dir: str | Path):
@@ -338,6 +349,76 @@ def write_best_by_algo_table(rows: list[dict], output_dir: Path) -> None:
     ]
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in best_rows:
+            writer.writerow(row)
+
+
+def write_best_by_algo_cross_task_table(rows: list[dict], output_dir: Path) -> None:
+    """Pick one config per algorithm by averaging across all tasks, instead of
+    per-task single-run results.
+
+    Each individual (experiment, algo, config) run is a single, un-repeated,
+    unseeded SA/GA/PSO execution -- too noisy on its own to declare a winner
+    (adjacent grid points can easily differ by less than one run's variance).
+    Re-running every grid point several times to average out that noise would
+    multiply an already expensive sweep. Instead, this treats the six tasks'
+    single runs as the repeats: for a given (algo, config), each task
+    contributes one independent draw of that algorithm's randomness, and
+    averaging the normalized loss across tasks is a config that's
+    consistently good across tasks rather than a per-task optimum -- which
+    is also what actually gets used, since runner.py applies one fixed config
+    to every experiment rather than tuning per dataset.
+    """
+    successful = [r for r in rows if r.get("success")]
+    grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for row in successful:
+        grouped[(row.get("algo", ""), row.get("config", ""))].append(row)
+
+    n_tasks = len({r.get("experiment", "") for r in successful})
+
+    summary_rows = []
+    for (algo, config), runs in sorted(grouped.items()):
+        losses = [
+            _normalized_loss(r.get("agreement", 0.0), r.get("states", 0), r.get("initial_states", 0))
+            for r in runs
+        ]
+        summary_rows.append({
+            "algo": algo,
+            "config": config,
+            "n_experiments": len(runs),
+            "n_experiments_total": n_tasks,
+            "meets_threshold_rate": sum(1 for r in runs if r.get("meets_threshold")) / len(runs),
+            "avg_normalized_loss": sum(losses) / len(losses),
+            "avg_states": sum(r.get("states", 0) for r in runs) / len(runs),
+            "avg_agreement": sum(r.get("agreement", 0.0) for r in runs) / len(runs),
+            "avg_time": sum(r.get("time", 0.0) for r in runs) / len(runs),
+        })
+
+    best_rows = []
+    for algo in sorted({row["algo"] for row in summary_rows}):
+        candidates = [row for row in summary_rows if row["algo"] == algo]
+        best = sorted(
+            candidates,
+            key=lambda r: (-r["meets_threshold_rate"], r["avg_normalized_loss"], r["avg_time"]),
+        )[0]
+        best_rows.append(best)
+
+    fieldnames = [
+        "algo", "config", "n_experiments", "n_experiments_total",
+        "meets_threshold_rate", "avg_normalized_loss", "avg_states",
+        "avg_agreement", "avg_time",
+    ]
+    all_path = output_dir / "cross_task_by_algo.csv"
+    with all_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in sorted(summary_rows, key=lambda r: (r["algo"], r["config"])):
+            writer.writerow(row)
+
+    best_path = output_dir / "best_by_algo_cross_task.csv"
+    with best_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in best_rows:
             writer.writerow(row)
@@ -739,6 +820,7 @@ def main() -> None:
             # Persist after every experiment, so partial results survive interruption.
             write_results_tables(all_rows, tune_output_dir)
             write_best_by_algo_table(all_rows, tune_output_dir)
+            write_best_by_algo_cross_task_table(all_rows, tune_output_dir)
             write_summary_text(all_results, experiment_names, tune_output_dir)
 
         summarize(all_results, experiment_names)
@@ -754,7 +836,9 @@ def main() -> None:
         print(f"  log     : {log_path}")
         print(f"  csv     : {tune_output_dir / 'tune_results.csv'}")
         print(f"  json    : {tune_output_dir / 'tune_results.json'}")
-        print(f"  best    : {tune_output_dir / 'best_by_algo.csv'}")
+        print(f"  best    : {tune_output_dir / 'best_by_algo.csv'} (per-task, single noisy run -- see cross-task table for a more reliable pick)")
+        print(f"  cross   : {tune_output_dir / 'cross_task_by_algo.csv'}")
+        print(f"  best_x  : {tune_output_dir / 'best_by_algo_cross_task.csv'}")
         print(f"  summary : {tune_output_dir / 'summary_top20.txt'}")
 
 
