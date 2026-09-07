@@ -395,8 +395,12 @@ def dfa_to_mata(dfa, file_path):
         states = list(state_by_id.values())
         finals = [s for s in states if getattr(s, 'is_accepting', False)]
         if not finals:
-            # Keep export valid even for intermediate malformed DFAs.
-            init_state.is_accepting = True
+            # Keep export valid even for intermediate malformed DFAs, without
+            # mutating the caller's DFA -- this is an export function, the
+            # input must stay read-only. init_state only needs to appear in
+            # the emitted `%Final` line below (built from finals[i].state_id),
+            # so listing it here is enough; its actual is_accepting attribute
+            # is left untouched.
             finals = [init_state]
 
         all_syms = sorted({sym for s in states for sym in getattr(s, 'transitions', {}).keys()})
