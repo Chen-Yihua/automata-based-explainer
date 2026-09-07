@@ -596,6 +596,7 @@ class AutomataBeamSearch:
         save_graphs: bool,
         collect_error_examples: bool,
         final_training_agreement: Optional[float] = None,
+        initial_training_agreement: Optional[float] = None,
     ) -> dict:
         initial_metadata = self.get_automata_metadata(
             origin_automaton,
@@ -604,6 +605,17 @@ class AutomataBeamSearch:
             is_final=True,
             collect_error_examples=False,
         )
+        if initial_training_agreement is not None:
+            # Same reasoning as final_training_agreement below: get_automata_metadata
+            # re-reads self.state's live, cumulative per-automaton counters, which
+            # for the origin automaton get overwritten wholesale at iteration 0
+            # (propose_automata recomputes them from all data drawn by then, not
+            # just the first batch) and can drift further if origin is resampled
+            # later (e.g. reused as a DELTA parent). Report the frozen agreement
+            # computed on the origin's first fixed batch instead -- the same value
+            # SharedInit hands SA/GA/PSO as their own "Init" -- so this row's Init
+            # is the same quantity as theirs.
+            initial_metadata["training_agreement"] = float(initial_training_agreement)
 
         remove_unreachable_states(final_automaton)
         if save_graphs:
@@ -1052,6 +1064,7 @@ class AutomataBeamSearch:
                     save_graphs=save_graphs,
                     collect_error_examples=collect_error_examples,
                     final_training_agreement=best["training_agreement"],
+                    initial_training_agreement=initial_agreement,
                 )
 
             best = max(all_history, key=lambda record: record["training_agreement"])
@@ -1072,6 +1085,7 @@ class AutomataBeamSearch:
                 save_graphs=save_graphs,
                 collect_error_examples=collect_error_examples,
                 final_training_agreement=best["training_agreement"],
+                initial_training_agreement=initial_agreement,
             )
 
         return self._make_result(
@@ -1086,4 +1100,5 @@ class AutomataBeamSearch:
             output_dir=output_dir,
             save_graphs=save_graphs,
             collect_error_examples=collect_error_examples,
+            initial_training_agreement=initial_agreement,
         )
