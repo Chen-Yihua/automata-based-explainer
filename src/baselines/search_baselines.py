@@ -453,6 +453,19 @@ class PSOAutomataOptimizer:
         per particle exactly as before, and return the per-particle loss so
         pyswarms can update pbest/gbest for the position vectors itself.
         """
+        # Reset per iteration, not per run: self.seen_signatures is threaded
+        # into _propose_delete_single/_merge_single/_delta_single (via
+        # _apply_operation_to_parent), whose own internal max_attempts=10
+        # retry loop gives up and returns the parent DFA unchanged once every
+        # attempt lands on an already-seen signature. Left unreset for the
+        # whole run, this set only grows, so retries increasingly exhaust
+        # against structures seen many iterations ago and particles quietly
+        # stop moving well before the evaluation budget is spent. SA
+        # (move()) and GA (each generation) both use a fresh set at this same
+        # granularity -- this was the one path still sharing state across the
+        # whole run instead of just within one iteration.
+        self.seen_signatures = set()
+
         self.positions = np.asarray(X, dtype=float)
         n_particles = self.n_particles
         losses = np.zeros(n_particles, dtype=float)
@@ -710,19 +723,24 @@ def _common_init(shared_init: SharedInit,
     
     print(f"[Init] Using shared init: {initial_states} states, {len(validation_data)} validation samples, {len(training_data)} training samples")
 
-    # Minimal state required by DFALearner.propose_automata().
-    # Coverage fields from the original Anchor implementation are intentionally omitted.
-    prealloc_size = batch_size * 10_000
+    # `state` is threaded through _propose_single_neighbor/propose_multiple_neighbors
+    # for signature compatibility with DFALearner.propose_automata() (the beam-search
+    # caller, which does read state['data']/['labels']/etc.), but SA/GA/PSO never
+    # call propose_automata() and neither of those two functions ever reads state's
+    # contents -- so the 'data'/'labels' fields used to be a real per-call
+    # np.zeros(batch_size * 10_000) allocation (80MB at the default batch_size=1000)
+    # plus a copy of validation_data that nothing ever consumed. Keep the dict (so
+    # callers destructuring _common_init's 7-tuple don't need to change) but make
+    # it cheap.
     state: dict = {
         't_nsamples':       defaultdict(lambda: 0.),
         't_accepted':       defaultdict(lambda: 0.),
         't_order':          defaultdict(list),
         't_positives':      defaultdict(lambda: 0.),
         't_negatives':      defaultdict(lambda: 0.),
-        'prealloc_size':    prealloc_size,
-        'data':             list(validation_data),
-        'labels':           np.zeros(prealloc_size, dtype=np.float64),
-        'current_idx':      len(validation_data),
+        'data':             [],
+        'labels':           np.zeros(0, dtype=np.float64),
+        'current_idx':      0,
     }
     state['t_order'][()] = []
 
@@ -786,7 +804,12 @@ def _select_final(all_history: list,
 
         final_val_agreement = _compute_agreement(automata, validation_data if validation_data is not None else [], validation_labels if validation_labels is not None else [])
         training_agreement = float(best_record.get("training_agreement", 0.0) or 0.0)
-        states = int(best_record.get("states") or _state_count(automata))
+        # Count states after remove_unreachable_states above, not the cached
+        # best_record["states"] from whenever this candidate was added to
+        # history -- that mutates automata.states in place, so a stale count
+        # can only overstate the reported size (removing states never adds
+        # any back).
+        states = _state_count(automata)
 
         return {
             "automata": automata,
@@ -1125,7 +1148,7 @@ def sa_dfa_search(data_type: str,
     if max_evaluations is None:
         effective_steps = max(1, int(steps))
     else:
-        moves_for_budget = math.ceil(int(max_evaluations) / int(sa_candidate_pool_size))
+        moves_for_budget = math.ceil(int(max_evaluations) / max(1, int(sa_candidate_pool_size)))
         effective_steps = max(1, min(int(steps), moves_for_budget))
     annealer.steps = effective_steps
 
@@ -1137,8 +1160,11 @@ def sa_dfa_search(data_type: str,
     # Run SA
     print(f"[SA] Running {effective_steps} steps with T_max={T_max}, T_min={T_min}, candidate_pool={sa_candidate_pool_size} (budget={max_evaluations})")
     print(f"[SA] Initial DFA: {initial_states} states, initial training agreement: {initial_train_agreement_seed:.4f}")
-    best_dfa, best_energy = annealer.anneal()
-    
+    # simanneal's own best_state/best_energy return value is discarded: the
+    # final automaton is selected from annealer.all_history via _select_final
+    # below, not from simanneal's internal best-state tracking.
+    annealer.anneal()
+
     # Prepare all_history with collected candidates
     all_history = annealer.all_history
     initial_train_agreement = _compute_agreement(initial_dfa, training_data, training_labels)
@@ -1533,10 +1559,19 @@ def pso_dfa_search(data_type: str,
     pso_max_ops_per_iteration = int(kwargs.get('pso_max_ops_per_iteration', 1))
     pso_candidate_pool_size = max(1, int(kwargs.get('pso_candidate_pool_size', pso_candidate_pool_size)))
     
-    # Calculate iterations based on max_evaluations and n_particles
-    # Each PSO iteration evaluates n_particles candidates, so:
+    # Calculate iterations based on max_evaluations and n_particles. Round up
+    # (like SA's effective_steps, search_baselines.py ~line 1128), not down:
+    # pyswarms's own `iters` loop is a hard cap independent of the evaluation
+    # budget, and _pyswarms_objective's internal `evaluations_count >=
+    # max_evaluations` check already stops exactly at budget -- so an
+    # under-provisioned iters here (floor division) was the binding
+    # constraint instead, leaving a systematic fraction of max_evaluations
+    # unused (e.g. max_evaluations=200 with evals_per_iteration=50 only
+    # scheduled 3 iterations = 150 evals, floor((200-1)/50), even though
+    # nothing else would have stopped a 4th). Each PSO iteration evaluates
+    # n_particles*pool_size candidates, so:
     evals_per_iteration = max(1, n_particles) * max(1, pso_candidate_pool_size)
-    n_iterations = max(1, (max_evaluations - 1) // evals_per_iteration)
+    n_iterations = max(1, math.ceil(max_evaluations / evals_per_iteration))
     
     # Create PSOAutomataOptimizer
     try:
