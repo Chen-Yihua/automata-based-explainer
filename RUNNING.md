@@ -75,7 +75,7 @@ Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Rea
 
 ## 5. 確認結果趨勢
 
-對照 `test_result/regular_0.8_1000/`、`test_result/realworld_0.8_1000/`。
+對照 `test_result/regular_0.8_1000/`、`test_result/realworld_0.8_1000/` 裡的 `experiment_log.txt` 最下方表格。
 
 本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，所以不要比對到小數點，改看下面這三個趨勢是否一致：
 
@@ -85,4 +85,4 @@ Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Rea
 
 ---
 
-最後更新：2026-09-01
+最後更新：2026-09-07
