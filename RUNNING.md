@@ -40,7 +40,7 @@ python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --bat
 
 | 參數 | 說明 |
 |---|---|
-| `--agreement_threshold` | 最終 DFA 需要達到的最低 agreement（與 teacher 的一致率）門檻 |
+| `--agreement_threshold` | 最終 DFA 需要達到的最低 training agreement（與 black box teacher 的一致率）門檻 |
 | `--delta` | KL-LUCB 信心參數（failure probability），越小代表信心界越保守 |
 | `--tau` | KL-LUCB 收斂精度（agreement 估計的容忍誤差），越小越精確但要更多樣本 |
 | `--batch_size` | 每輪抽樣／評估用的樣本數 |
@@ -63,8 +63,8 @@ python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --bat
 | 欄位 | 說明 |
 |---|---|
 | `method` | beam / sa / ga / pso |
-| `initial_train_acc` / `final_train_acc` | 初始／refined DFA 的 training agreement |
-| `initial_validation_acc` / `final_validation_acc` | 初始／refined DFA 的 validation agreement |
+| `initial_train_acc` / `final_train_acc` | 初始／refined DFA 的 training agreement （與 black box teacher 的一致率）|
+| `initial_validation_acc` / `final_validation_acc` | 初始／refined DFA 的 validation agreement （與初始 DFA 的一致率）|
 | `states` | final DFA 的 state 數 |
 | `time_s` | 執行時間（秒） |
 | `success` | 是否達到 agreement threshold |
