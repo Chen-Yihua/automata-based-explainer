@@ -38,6 +38,7 @@ examples/**/*.txt
 
 # Not tracked (kept locally only)
 examples/RPNI/run_kllucb_comparison.py
+examples/RPNI/run_wafer_param_ablation.py
 
 # OS
 .DS_Store
