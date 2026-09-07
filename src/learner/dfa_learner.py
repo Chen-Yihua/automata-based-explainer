@@ -214,10 +214,13 @@ def _merge_candidate_from_pair(args):
         for sym, nxt in s2_new.transitions.items():
             s1_new.transitions[sym] = nxt
 
-        s1_majority = majority_labels.get(s1.state_id, 0)
-        s2_majority = majority_labels.get(s2.state_id, 0)
-        merged_majority = max([s1_majority, s2_majority], default=0)
-        s1_new.is_accepting = (merged_majority == 1)
+        if s1.is_accepting != s2.is_accepting:
+            s1_majority = majority_labels.get(s1.state_id, 0)
+            s2_majority = majority_labels.get(s2.state_id, 0)
+            merged_majority = max([s1_majority, s2_majority], default=0)
+            s1_new.is_accepting = (merged_majority == 1)
+        else:
+            s1_new.is_accepting = s1.is_accepting
 
         if isinstance(new_dfa.states, set):
             new_dfa.states.discard(s2_new)
@@ -477,13 +480,14 @@ class DFASampler:
 
             while remaining_edits > 0:
 
-                possible_ops = ["replace"]
+                possible_ops = []
+
+                if len(new_instance) > 0:
+                    possible_ops.append("replace")
+                    possible_ops.append("delete")
 
                 if self.max_len is None or len(new_instance) < self.max_len:
                     possible_ops.append("insert")
-
-                if len(new_instance) > 0:
-                    possible_ops.append("delete")
 
                 op = _r.choice(possible_ops)
 
@@ -989,7 +993,11 @@ class DFALearner(BaseAutomataLearner):
                     else:
                         s1_new.transitions[sym] = nxt
                 
-                # Merge accepting status based on majority label
+                # If s1/s2 already agree on accepting status, keep it -- no
+                # need to consult majority_labels. Only consult it to resolve
+                # a genuine disagreement (unlike the beam path, this random
+                # single-merge doesn't pre-filter for matching accepting
+                # status, so s1/s2 can actually differ here).
                 # Compute state_label_dist similar to collect_merge_pairs_simple
                 state_label_counts_s1 = defaultdict(int)
                 state_label_counts_s2 = defaultdict(int)
@@ -1004,10 +1012,13 @@ class DFALearner(BaseAutomataLearner):
                         if cur.state_id == s2.state_id:
                             state_label_counts_s2[y] += 1
                 
-                s1_majority = max(state_label_counts_s1, key=state_label_counts_s1.get) if state_label_counts_s1 else 0
-                s2_majority = max(state_label_counts_s2, key=state_label_counts_s2.get) if state_label_counts_s2 else 0
-                merged_majority = max([s1_majority, s2_majority], default=0)
-                s1_new.is_accepting = (merged_majority == 1)
+                if s1.is_accepting != s2.is_accepting:
+                    s1_majority = max(state_label_counts_s1, key=state_label_counts_s1.get) if state_label_counts_s1 else 0
+                    s2_majority = max(state_label_counts_s2, key=state_label_counts_s2.get) if state_label_counts_s2 else 0
+                    merged_majority = max([s1_majority, s2_majority], default=0)
+                    s1_new.is_accepting = (merged_majority == 1)
+                else:
+                    s1_new.is_accepting = s1.is_accepting
                 
                 # Remove s2
                 if s2_new in new_dfa.states:
@@ -1238,8 +1249,19 @@ class DFALearner(BaseAutomataLearner):
         # select pairs of states with the same main label
         pair_scores = []
         for s1, s2 in itertools.combinations(dfa.states, 2):
-            # if s1 == dfa.initial_state or s2 == dfa.initial_state:
-            #     continue
+            # Must filter here, before scoring/truncation to max_pairs below --
+            # not after. dfa.initial_state is always dfa.states[0] (aalpy's
+            # to_state_setup() sorts by prefix length, and the initial state's
+            # own prefix is always the unique shortest, length 0), so
+            # itertools.combinations puts every pair containing it first. It's
+            # also on every sample's path, so its main_label is the dataset's
+            # global majority label -- meaning most non-accepting states tie
+            # it for the top score. Together, initial_state pairs can fill
+            # (in observed cases, all of) the top max_pairs slots, and every
+            # one is invalid (_merge_candidate_from_pair rejects merging the
+            # initial state), starving _propose_merge of any candidate at all.
+            if s1 == dfa.initial_state or s2 == dfa.initial_state:
+                continue
             if s1.is_accepting != s2.is_accepting:
                 continue
             
@@ -1303,11 +1325,13 @@ class DFALearner(BaseAutomataLearner):
             for state_id, dist in state_label_dist.items()
         }
 
-        # Mirror the validity check _merge_candidate_from_pair performs after
-        # copying (neither state may be the initial state), so we skip
-        # pickling/copying the DFA for pairs that are always rejected. The
-        # top-20 ranking above is unchanged; this only drops guaranteed-None
-        # tasks from the already-selected pair list.
+        # Defensive re-check, not the primary filter: collect_merge_pairs_simple
+        # already excludes initial_state pairs before ranking/truncation, so
+        # this should always be a no-op. Kept as a cheap invariant guard in
+        # case that changes, mirroring the validity check
+        # _merge_candidate_from_pair performs after copying (neither state may
+        # be the initial state) -- so we skip pickling/copying the DFA for
+        # any pair that would be rejected anyway.
         mergeable_pairs = [
             (s1, s2) for s1, s2 in feasible_pairs
             if s1 is not dfa.initial_state and s2 is not dfa.initial_state
