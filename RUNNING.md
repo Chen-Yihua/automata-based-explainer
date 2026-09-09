@@ -34,6 +34,17 @@ python examples/RPNI/run_regular_experiment.py --agreement_threshold 0.8 --batch
 python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --batch_size 1000 --max_evaluations 3000
 ```
 
+**注意：上面兩個指令都只跑每個任務固定的單一 test instance，不會取平均、沒有變異數**——`DEFAULT_LANGUAGE_CONFIGS` 裡每個任務都寫了一條 `test_instance`，這條指令沒有蓋掉它，所以每個任務都是單次結果。論文表格裡每一格因此是單一 instance 的單次數字，不是多次重複的平均。
+
+如果要改成每個任務隨機產生多條 test instance、各跑一次：
+
+```bash
+python examples/RPNI/run_regular_experiment.py --agreement_threshold 0.8 --batch_size 1000 --max_evaluations 3000 --num_test_instances 10
+```
+
+加上 `--num_test_instances N` 會改成隨機產生 N 條序列（regular 是從 teacher DFA 隨機走出來，real-world 是取 training set 前 N 條），每條各自跑一次 beam/SA/GA/PSO。注意跑的時間會直接乘上 N 倍。目前的實驗腳本、`experiment_log.txt` 是印出單一 instance 的表格，若要把 N 條的結果平均，可使用 `from experiments.runner import print_averaged_summary`
+。
+
 ---
 
 ## 3. 命令列可覆蓋的參數
@@ -54,7 +65,7 @@ python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --bat
 | `--n_jobs` | 平行模式下使用的 worker 執行緒數 |
 | `--num_seeds` | 僅 KL-LUCB：要跑幾個 random seed 並取平均／標準差，預設 10 |
 
-### 初始 DFA 狀態數的隱藏限制
+### 實驗中限制初始 DFA 狀態數
 
 Beam / SA / GA / PSO 的搜尋方法本身不要求初始 DFA 落在特定狀態數範圍——狀態數多少都能跑。但為了讓實驗結果之間可以互相比較（每個任務都看得出「狀態數隨搜尋逐步下降」的趨勢），程式刻意加了一道篩選：只有初始 DFA 落在 `init_state_range=(25, 65)`（`AutomataBeamSearch.automata_beam()` 裡的固定值，目前沒有開放 CLI 覆蓋）才會拿來繼續跑；不在這個範圍內就捨棄並重新抽樣，最多重試 `max_init_attempts=40` 次，40 次都不在範圍內的話，這筆實驗會直接失敗跳過（log 會印 `[ERROR] Initial DFA construction failed`，狀態會被標成 `[SKIPPED]`）。
 
@@ -64,18 +75,17 @@ Beam / SA / GA / PSO 的搜尋方法本身不要求初始 DFA 落在特定狀態
 
 ## 4. 結果欄位
 
-**Regular / Real-world**：log 在 `test_result/{regular,realworld}_{threshold}_{batch}/experiment_log.txt`，`results.csv` 主要欄位：
+**Regular / Real-world**：純文字 log，在 `test_result/{regular,realworld}_{threshold}_{batch}/experiment_log.txt`。每個任務一段，先印任務標頭（regular 是 `teacher_states`/`initial_states`；real-world 是 `clf_train`/`clf_test`/`clf_test_novel`/`initial_states`），再印一張表：
 
 | 欄位 | 說明 |
 |---|---|
-| `method` | beam / sa / ga / pso |
-| `initial_train_acc` / `final_train_acc` | 初始／refined DFA 的 training agreement （與 black box teacher 的一致率）|
-| `initial_validation_acc` / `final_validation_acc` | 初始／refined DFA 的 validation agreement （與初始 DFA 的一致率）|
-| `states` | final DFA 的 state 數 |
-| `time_s` | 執行時間（秒） |
-| `success` | 是否達到 agreement threshold |
+| `Method` | BeamSearch / SA / GA / PSO |
+| `Train (Init→Final)` | 初始／refined DFA 的 training agreement（與 black box teacher 的一致率），末尾 ✓/✗ 表示有沒有達到 `--agreement_threshold` |
+| `Validation (Init→Final)` | 初始／refined DFA 的 validation agreement（與初始 DFA 建構樣本的一致率，見下方 `--num_test_instances` 平均表附近的說明） |
+| `States` | final DFA 的 state 數 |
+| `Time(s)` | 執行時間（秒） |
 
-Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Real-world 另有 `clf_train_acc`、`clf_test_acc`、`init_states`。
+如果要機器可讀的 CSV，用 `python analysis/parse_results.py` 把 `test_result/` 底下所有 `experiment_log.txt` 彙整成 `analysis/summary_table.csv`（欄位：`config`、`domain`、`threshold`、`batch_size`、`automaton`、`teacher_states`、`initial_states`、`clf_train`、`clf_test`、`method`、`train_init`、`train_final`、`val_init`、`val_final`、`final_states`、`time_s`），細節見 [`README.md`](README.md#結果整理與畫圖)。
 
 ---
 
@@ -91,4 +101,4 @@ Regular 另有 `teacher_train_acc`、`teacher_test_acc`、`teacher_states`；Rea
 
 ---
 
-最後更新：2026-09-07
+最後更新：2026-09-09
