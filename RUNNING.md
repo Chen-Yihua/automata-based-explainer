@@ -42,8 +42,9 @@ python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --bat
 python examples/RPNI/run_regular_experiment.py --agreement_threshold 0.8 --batch_size 1000 --max_evaluations 3000 --num_test_instances 10
 ```
 
-加上 `--num_test_instances N` 會改成隨機產生 N 條序列（regular 是從 teacher DFA 隨機走出來，real-world 是取 training set 前 N 條），每條各自跑一次 beam/SA/GA/PSO。注意跑的時間會直接乘上 N 倍。目前的實驗腳本、`experiment_log.txt` 是印出單一 instance 的表格，若要把 N 條的結果平均，可使用 `from experiments.runner import print_averaged_summary`
-。
+加上 `--num_test_instances N` 會改成隨機產生 N 條序列（regular 是從 teacher DFA 隨機走出來，real-world 是取 training set 前 N 條），每條各自跑一次 beam/SA/GA/PSO。注意跑的時間會直接乘上 N 倍。
+
+`experiment_log.txt` 預設只印出每個 instance 各自的表格，不會自動平均。`src/experiments/runner.py` 提供 `print_averaged_summary(results)`，吃跟 `print_suite_summary` 一樣格式的 dict（`{f"{task}_instance_{idx:02d}": run_search_suite(...) 的回傳值}`），印出每個任務跨 instance 的 mean±std；`from experiments.runner import print_averaged_summary` 後直接呼叫即可。
 
 ---
 
