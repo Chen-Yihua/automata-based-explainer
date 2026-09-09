@@ -81,7 +81,7 @@ Beam / SA / GA / PSO 的搜尋方法本身不要求初始 DFA 落在特定狀態
 |---|---|
 | `Method` | BeamSearch / SA / GA / PSO |
 | `Train (Init→Final)` | 初始／refined DFA 的 training agreement（與 black box teacher 的一致率），末尾 ✓/✗ 表示有沒有達到 `--agreement_threshold` |
-| `Validation (Init→Final)` | 初始／refined DFA 的 validation agreement（與初始 DFA 建構樣本的一致率，見下方 `--num_test_instances` 平均表附近的說明） |
+| `Validation (Init→Final)` | 初始／refined DFA 的 validation agreement（與初始 DFA 建構樣本的一致率） |
 | `States` | final DFA 的 state 數 |
 | `Time(s)` | 執行時間（秒） |
 
@@ -93,7 +93,7 @@ Beam / SA / GA / PSO 的搜尋方法本身不要求初始 DFA 落在特定狀態
 
 對照 `test_result/regular_0.8_1000/`、`test_result/realworld_0.8_1000/` 裡的 `experiment_log.txt` 最下方表格。
 
-本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，所以不要比對到小數點，改看下面這三個趨勢是否一致：
+本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，改看下面這三個趨勢是否一致：
 
 1. beam 的 `time` 大部分最小
 2. beam 通常能用較少的 state 數達到門檻，但不是每個任務都同時贏 states 和 agreement

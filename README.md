@@ -135,7 +135,7 @@ python src/baselines/tune_baseline_params.py \
 
 ## 結果整理與畫圖
 
-實驗（`run_regular_experiment.py`/`run_realworld_experiment.py`）結束後，`test_result/` 底下會有 `regular_<threshold>_<batch_size>/`、`realworld_<threshold>_<batch_size>/` 這樣的資料夾，每個底下是各任務的 `experiment_log.txt`。接下來兩步把它們整理成圖：
+實驗（`run_regular_experiment.py`/`run_realworld_experiment.py`）結束後，`test_result/` 底下會有 `regular_<threshold>_<batch_size>/`、`realworld_<threshold>_<batch_size>/` 資料夾，每個底下是各任務的 `experiment_log.txt`。接下來兩步把它們整理成圖：
 
 ```bash
 python analysis/parse_results.py
