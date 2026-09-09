@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import csv
-import json
 import os
 import pickle
 import re
@@ -260,13 +259,9 @@ class Tee:
 
 
 def write_results_tables(rows: list[dict], output_dir: Path) -> None:
-    """Persist tuning results as CSV and JSON."""
+    """Persist every raw (experiment, algo, config) run as CSV."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    json_path = output_dir / "tune_results.json"
     csv_path = output_dir / "tune_results.csv"
-
-    with json_path.open("w", encoding="utf-8") as f:
-        json.dump(rows, f, ensure_ascii=False, indent=2)
 
     fieldnames = [
         "experiment", "algo", "config", "success", "states", "agreement",
@@ -277,80 +272,6 @@ def write_results_tables(rows: list[dict], output_dir: Path) -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
-            writer.writerow(row)
-
-
-def write_summary_text(all_results: dict, experiment_names: list[str], output_dir: Path) -> None:
-    """Write the top-20 cross-experiment ranking (same rule as summarize()'s
-    console output) to summary_top20.txt."""
-    rows = []
-    for exp_name in experiment_names:
-        for algo, configs in all_results[exp_name].items():
-            for config_name, runs in configs.items():
-                if not runs:
-                    continue
-                best_run = min(
-                    runs,
-                    key=lambda r: (
-                        r.get("states", 10**9),
-                        -r.get("agreement", 0.0),
-                        r.get("time", 10**9),
-                    ),
-                )
-                rows.append({
-                    "experiment": exp_name,
-                    "algo": algo.upper(),
-                    "config": config_name,
-                    "states": best_run.get("states", 0),
-                    "agreement": best_run.get("agreement", 0.0),
-                    "validation_agreement": best_run.get("validation_agreement", 0.0),
-                    "time": best_run.get("time", 0.0),
-                    "meets_threshold": best_run.get("agreement", 0.0) >= AGREEMENT_THRESHOLD,
-                })
-
-    ranked = sorted(rows, key=lambda r: (not r["meets_threshold"], r["states"], -r["agreement"], r["time"]))
-    path = output_dir / "summary_top20.txt"
-    with path.open("w", encoding="utf-8") as f:
-        f.write("Ranking rule: meets threshold > smaller states > larger agreement > shorter time\n")
-        for i, row in enumerate(ranked[:20], start=1):
-            f.write(
-                f"{i:2d}. {row['experiment']:<50s} | {row['algo']:3s} | {row['config']:<35s} "
-                f"| ok={int(row['meets_threshold'])} | states={row['states']:4d} "
-                f"| agreement={row['agreement']:.4f} | val={row['validation_agreement']:.4f} "
-                f"| time={row['time']:.1f}s\n"
-            )
-
-
-def write_best_by_algo_table(rows: list[dict], output_dir: Path) -> None:
-    """Write the best tuned config for each experiment x algorithm."""
-    successful = [r for r in rows if r.get("success")]
-    grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    for row in successful:
-        grouped[(row.get("experiment", ""), row.get("algo", ""))].append(row)
-
-    best_rows = []
-    for (experiment, algo), runs in sorted(grouped.items()):
-        best = sorted(
-            runs,
-            key=lambda r: (
-                not r.get("meets_threshold", False),
-                r.get("states", 10**9),
-                -r.get("agreement", 0.0),
-                r.get("time", 10**9),
-            ),
-        )[0]
-        best_rows.append(best)
-
-    path = output_dir / "best_by_algo.csv"
-    fieldnames = [
-        "experiment", "algo", "config", "success", "states", "agreement",
-        "validation_agreement", "time", "evaluations_used", "max_evaluations",
-        "operator_counts", "meets_threshold", "error",
-    ]
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for row in best_rows:
             writer.writerow(row)
 
 
@@ -819,14 +740,11 @@ def main() -> None:
 
             # Persist after every experiment, so partial results survive interruption.
             write_results_tables(all_rows, tune_output_dir)
-            write_best_by_algo_table(all_rows, tune_output_dir)
             write_best_by_algo_cross_task_table(all_rows, tune_output_dir)
-            write_summary_text(all_results, experiment_names, tune_output_dir)
 
         summarize(all_results, experiment_names)
         write_results_tables(all_rows, tune_output_dir)
-        write_best_by_algo_table(all_rows, tune_output_dir)
-        write_summary_text(all_results, experiment_names, tune_output_dir)
+        write_best_by_algo_cross_task_table(all_rows, tune_output_dir)
 
         if not args.keep_scratch and scratch_dir.exists():
             shutil.rmtree(scratch_dir, ignore_errors=True)
@@ -834,12 +752,9 @@ def main() -> None:
 
         print("\nTune results saved:")
         print(f"  log     : {log_path}")
-        print(f"  csv     : {tune_output_dir / 'tune_results.csv'}")
-        print(f"  json    : {tune_output_dir / 'tune_results.json'}")
-        print(f"  best    : {tune_output_dir / 'best_by_algo.csv'} (per-task, single noisy run -- see cross-task table for a more reliable pick)")
-        print(f"  cross   : {tune_output_dir / 'cross_task_by_algo.csv'}")
-        print(f"  best_x  : {tune_output_dir / 'best_by_algo_cross_task.csv'}")
-        print(f"  summary : {tune_output_dir / 'summary_top20.txt'}")
+        print(f"  csv     : {tune_output_dir / 'tune_results.csv'} (every raw run)")
+        print(f"  cross   : {tune_output_dir / 'cross_task_by_algo.csv'} (every config, averaged across tasks)")
+        print(f"  best_x  : {tune_output_dir / 'best_by_algo_cross_task.csv'} (winner per algo -- this is what runner.py reads automatically)")
 
 
 if __name__ == "__main__":
