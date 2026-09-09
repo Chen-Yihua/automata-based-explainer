@@ -54,6 +54,12 @@ python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --bat
 | `--n_jobs` | 平行模式下使用的 worker 執行緒數 |
 | `--num_seeds` | 僅 KL-LUCB：要跑幾個 random seed 並取平均／標準差，預設 10 |
 
+### 初始 DFA 狀態數的隱藏限制
+
+Beam / SA / GA / PSO 的搜尋方法本身不要求初始 DFA 落在特定狀態數範圍——狀態數多少都能跑。但為了讓實驗結果之間可以互相比較（每個任務都看得出「狀態數隨搜尋逐步下降」的趨勢），程式刻意加了一道篩選：只有初始 DFA 落在 `init_state_range=(25, 65)`（`AutomataBeamSearch.automata_beam()` 裡的固定值，目前沒有開放 CLI 覆蓋）才會拿來繼續跑；不在這個範圍內就捨棄並重新抽樣，最多重試 `max_init_attempts=40` 次，40 次都不在範圍內的話，這筆實驗會直接失敗跳過（log 會印 `[ERROR] Initial DFA construction failed`，狀態會被標成 `[SKIPPED]`）。
+
+`--init_num_samples` 決定建初始 DFA 時觀察幾條樣本路徑，會直接影響初始 DFA 的狀態數。如果某個任務被跳過，可檢查 `--init_num_samples` 是不是相對這個任務的字母表/edit_distance 設太小。
+
 ---
 
 ## 4. 結果欄位
