@@ -381,7 +381,7 @@ def comparison_figure(rows, threshold: float = 0.8, batch_size: int = 1000) -> s
 {runtime_plots}
 \\end{{groupplot}}
 \\end{{tikzpicture}}
-\\caption{{Comparison between the proposed method (Beam) and baseline search algorithms (SA, GA, and PSO) across six tasks under batch size 1000 and $\\tau={threshold}$: (a) final DFA size, (b) training agreement, (c) validation agreement, and (d) runtime.}}
+\\caption{{Comparison between the proposed method (Beam) and baseline search algorithms (SA, GA, and PSO) across six tasks under batch size {batch_size} and $\\tau={threshold}$: (a) final DFA size, (b) training agreement, (c) validation agreement, and (d) runtime.}}
 \\label{{fig:comparison}}
 \\end{{figure}}
 """
