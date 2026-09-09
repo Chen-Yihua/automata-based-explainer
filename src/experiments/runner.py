@@ -11,8 +11,11 @@ then call run_search_suite().
 """
 from __future__ import annotations
 
+import csv
+import glob
 import os
 import pickle
+import re
 import time
 from typing import Any, Callable, Dict, Iterable, Optional, Sequence
 
@@ -23,7 +26,63 @@ from learner.dfa_learner import DFALearner, DFASampler
 from baselines.search_baselines import SharedInit, ga_dfa_search, pso_dfa_search, sa_dfa_search
 
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 DEFAULT_METHODS = ("beam", "sa", "ga", "pso")
+
+
+_SA_CONFIG_RE = re.compile(r"pool=(\d+)")
+_GA_CONFIG_RE = re.compile(r"pop=(\d+)")
+_PSO_CONFIG_RE = re.compile(r"n_particles=(\d+),pool=(\d+),ops=(\d+)")
+
+
+def _find_latest_tuned_params_csv(search_root: Optional[str] = None) -> Optional[str]:
+    """Find the most recently written best_by_algo_cross_task.csv produced by
+    baselines.tune_baseline_params under test_result/tune_*/, if any."""
+    root = search_root or os.path.join(PROJECT_ROOT, "test_result")
+    matches = glob.glob(os.path.join(root, "tune_*", "best_by_algo_cross_task.csv"))
+    if not matches:
+        return None
+    return max(matches, key=os.path.getmtime)
+
+
+def _load_tuned_baseline_params(csv_path: Optional[str] = None) -> Dict[str, int]:
+    """Load cross-task-tuned SA/GA/PSO hyperparameters written by
+    tune_baseline_params.py's write_best_by_algo_cross_task_table(), if a
+    result is available. Returns {} (caller keeps its own hardcoded
+    defaults) when no tuned-params file exists -- tuning is optional, not a
+    prerequisite for running the main experiment.
+    """
+    path = csv_path or _find_latest_tuned_params_csv()
+    if not path or not os.path.isfile(path):
+        return {}
+
+    tuned: Dict[str, int] = {}
+    try:
+        with open(path, "r", newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                algo = (row.get("algo") or "").upper()
+                config = row.get("config") or ""
+                if algo == "SA":
+                    m = _SA_CONFIG_RE.search(config)
+                    if m:
+                        tuned["sa_candidate_pool_size"] = int(m.group(1))
+                elif algo == "GA":
+                    m = _GA_CONFIG_RE.search(config)
+                    if m:
+                        tuned["ga_population_size"] = int(m.group(1))
+                elif algo == "PSO":
+                    m = _PSO_CONFIG_RE.search(config)
+                    if m:
+                        tuned["pso_particles"] = int(m.group(1))
+                        tuned["pso_candidate_pool_size"] = int(m.group(2))
+                        tuned["pso_max_ops_per_iteration"] = int(m.group(3))
+    except Exception as exc:
+        print(f"  [WARNING] Could not read tuned baseline params from {path}: {exc}")
+        return {}
+
+    if tuned:
+        print(f"  [Tuned params] Using {tuned} from {path}")
+    return tuned
 
 
 class NoInitialDFAError(RuntimeError):
@@ -241,6 +300,12 @@ def run_baseline(
         max_evaluations=cfg.get("max_evaluations"),
     )
 
+    # Cross-task-tuned SA/GA/PSO hyperparameters (baselines.tune_baseline_params
+    # output) are used by default when available; an explicit value in cfg
+    # still wins, and if no tuned-params file exists at all this falls back
+    # to the same hardcoded defaults as before.
+    tuned = _load_tuned_baseline_params(cfg.get("tuned_params_csv"))
+
     if method == "sa":
         fn = sa_dfa_search
         extra = dict(
@@ -248,21 +313,21 @@ def run_baseline(
             steps=cfg.get("sa_steps", 500),
             T_max=cfg.get("sa_t_max", 10.0),
             T_min=cfg.get("sa_t_min", 0.001),
-            sa_candidate_pool_size=cfg.get("sa_candidate_pool_size", 10),
+            sa_candidate_pool_size=cfg.get("sa_candidate_pool_size", tuned.get("sa_candidate_pool_size", 10)),
         )
     elif method == "ga":
         fn = ga_dfa_search
         extra = dict(
-            population_size=cfg.get("ga_population_size", 10),
+            population_size=cfg.get("ga_population_size", tuned.get("ga_population_size", 10)),
             tournament_size=cfg.get("ga_tournament_size", 2),
         )
     elif method == "pso":
         fn = pso_dfa_search
         extra = dict(
             beam_size=1,
-            n_particles=cfg.get("pso_particles", 5),
-            pso_max_ops_per_iteration=cfg.get("pso_max_ops_per_iteration", 1),
-            pso_candidate_pool_size=cfg.get("pso_candidate_pool_size", 5),
+            n_particles=cfg.get("pso_particles", tuned.get("pso_particles", 5)),
+            pso_max_ops_per_iteration=cfg.get("pso_max_ops_per_iteration", tuned.get("pso_max_ops_per_iteration", 1)),
+            pso_candidate_pool_size=cfg.get("pso_candidate_pool_size", tuned.get("pso_candidate_pool_size", 5)),
         )
     else:
         raise ValueError(f"Unknown method: {method}")
