@@ -17,7 +17,7 @@
     axis y line*=left,
     ylabel={Number of states},
     ymin=0, ymax=115,
-    symbolic x coords={Handshake,Document,Navigation,MNIST,ECG5000,Wafer},
+    symbolic x coords={Document,Obligation,Handshake,ECG5000,MNIST,Wafer},
     xtick=data,
     x tick label style={rotate=20, anchor=east},
     enlarge x limits=0.12,
@@ -26,9 +26,9 @@
     nodes near coords,
     every node near coord/.append style={font=\footnotesize},
 ]
-\addplot[fill=initColor!35!white, draw=initColor, line width=0.5pt] coordinates {(Handshake,32) (Document,30) (Navigation,28) (MNIST,41) (ECG5000,26) (Wafer,36)};
+\addplot[fill=initColor!35!white, draw=initColor, line width=0.5pt] coordinates {(Document,27) (Obligation,26) (Handshake,31) (ECG5000,26) (MNIST,41) (Wafer,36)};
 \addlegendentry{Initial (RPNI)}
-\addplot[fill=finalColor!70!white, draw=finalColor, line width=0.5pt] coordinates {(Handshake,4) (Document,3) (Navigation,4) (MNIST,9) (ECG5000,9) (Wafer,33)};
+\addplot[fill=finalColor!70!white, draw=finalColor, line width=0.5pt] coordinates {(Document,3) (Obligation,4) (Handshake,4) (ECG5000,9) (MNIST,4) (Wafer,33)};
 \addlegendentry{Final (refined)}
 \addlegendimage{gray!65, dashed, line width=0.8pt}
 \addlegendentry{Threshold ($\tau=0.8$)}
@@ -52,38 +52,39 @@
     axis x line=none,
     ylabel={Agreement},
     ymin=0.6, ymax=1.02,
-    symbolic x coords={Handshake,Document,Navigation,MNIST,ECG5000,Wafer},
+    symbolic x coords={Document,Obligation,Handshake,ECG5000,MNIST,Wafer},
     xtick=data,
     enlarge x limits=0.12,
 ]
 \addplot[color=gray!65, dashed, line width=0.8pt, forget plot]
-    coordinates {(Handshake,0.8) (Wafer,0.8)};
-\addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(Handshake,0.8950) (Handshake,0.8661)};
+    coordinates {(Document,0.8) (Wafer,0.8)};
 \addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(Document,0.8940) (Document,0.8686)};
-\addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(Navigation,0.9100) (Navigation,0.8556)};
-\addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(MNIST,0.7620) (MNIST,0.8192)};
+\addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(Obligation,0.9100) (Obligation,0.8556)};
+\addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(Handshake,0.8950) (Handshake,0.8661)};
 \addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(ECG5000,0.8400) (ECG5000,0.8040)};
+\addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(MNIST,0.7620) (MNIST,0.8192)};
 \addplot[trainColor, thin, opacity=0.55, forget plot] coordinates {(Wafer,0.7406) (Wafer,0.7684)};
-\addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(Handshake,1.0000) (Handshake,0.8690)};
 \addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(Document,1.0000) (Document,0.8810)};
-\addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(Navigation,1.0000) (Navigation,0.8640)};
-\addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(MNIST,1.0000) (MNIST,0.8280)};
+\addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(Obligation,1.0000) (Obligation,0.8640)};
+\addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(Handshake,1.0000) (Handshake,0.8690)};
 \addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(ECG5000,1.0000) (ECG5000,0.8020)};
+\addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(MNIST,1.0000) (MNIST,0.8280)};
 \addplot[valColor, thin, opacity=0.55, forget plot] coordinates {(Wafer,1.0000) (Wafer,0.9780)};
 \addplot[only marks, color=trainColor, mark=diamond, mark size=2.8pt, forget plot]
-    coordinates {(Handshake,0.8950) (Document,0.8940) (Navigation,0.9100) (MNIST,0.7620) (ECG5000,0.8400) (Wafer,0.7406)};
+    coordinates {(Document,0.8940) (Obligation,0.9100) (Handshake,0.8950) (ECG5000,0.8400) (MNIST,0.7620) (Wafer,0.7406)};
 \addplot[only marks, color=valColor, mark=square, mark size=2.4pt, forget plot]
-    coordinates {(Handshake,1.0000) (Document,1.0000) (Navigation,1.0000) (MNIST,1.0000) (ECG5000,1.0000) (Wafer,1.0000)};
+    coordinates {(Document,1.0000) (Obligation,1.0000) (Handshake,1.0000) (ECG5000,1.0000) (MNIST,1.0000) (Wafer,1.0000)};
 \addplot[only marks, color=trainColor, mark=diamond*, mark size=2.8pt, forget plot,
     nodes near coords={\pgfmathprintnumber[fixed, fixed zerofill, precision=4]{\pgfplotspointmeta}},
     every node near coord/.append style={font=\footnotesize, text=trainColor, anchor=south east, xshift=-4pt, yshift=3pt}]
-    coordinates {(Handshake,0.8661) (Document,0.8686) (Navigation,0.8556) (MNIST,0.8192) (ECG5000,0.8040) (Wafer,0.7684)};
+    coordinates {(Document,0.8686) (Obligation,0.8556) (Handshake,0.8661) (ECG5000,0.8040) (MNIST,0.8192) (Wafer,0.7684)};
 \addplot[only marks, color=valColor, mark=square*, mark size=2.4pt, forget plot,
     nodes near coords={\pgfmathprintnumber[fixed, fixed zerofill, precision=4]{\pgfplotspointmeta}},
     every node near coord/.append style={font=\footnotesize, text=valColor, anchor=north west, xshift=4pt, yshift=-3pt}]
-    coordinates {(Handshake,0.8690) (Document,0.8810) (Navigation,0.8640) (MNIST,0.8280) (ECG5000,0.8020) (Wafer,0.9780)};
+    coordinates {(Document,0.8810) (Obligation,0.8640) (Handshake,0.8690) (ECG5000,0.8020) (MNIST,0.8280) (Wafer,0.9780)};
 \end{axis}
 \end{tikzpicture}
-\caption{Same method, before vs.\ after refinement: number of DFA states (bars) and training/validation agreement (markers) for BeamSearch across the six tasks under agreement threshold $\tau=0.8$. For agreement, hollow markers are the initial (origin RPNI) automaton and filled markers are the automaton after refinement, connected by a thin segment; the dashed line indicates the specified agreement threshold.}
+\caption{DFA size and agreement before and after Beam Search refinement across six
+tasks ($\tau = 0.8$).}
 \label{fig:combo-tau08}
 \end{figure}
