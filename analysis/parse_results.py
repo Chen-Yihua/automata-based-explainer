@@ -1,15 +1,26 @@
 """
-Parse the per-automaton summary tables out of test_result/final_result/*/experiment_log.txt
-into a single tidy CSV. Read-only w.r.t. final_result — never writes there.
+Parse the per-automaton summary tables out of every experiment_log.txt found
+anywhere under test_result/ whose parent directory matches CONFIG_RE (e.g.
+test_result/regular_0.8_1000/, or test_result/final_result/regular_0.8_2000/),
+into a single tidy CSV. Read-only w.r.t. test_result/ — never writes there.
+
+No manual staging step required: run_regular_experiment.py /
+run_realworld_experiment.py already write directly to
+test_result/{regular,realworld}_{threshold}_{batch_size}/, which this finds
+on its own. If the same (domain, threshold, batch_size) combo exists in more
+than one place under test_result/ (e.g. an old manually-archived copy under
+final_result/ alongside a fresher direct pipeline run), the
+most-recently-modified experiment_log.txt wins and a note is printed.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import csv
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-FINAL_RESULT_DIR = os.path.join(PROJECT_ROOT, "test_result", "final_result")
+DEFAULT_SEARCH_ROOT = os.path.join(PROJECT_ROOT, "test_result")
 OUT_CSV = os.path.join(os.path.dirname(__file__), "summary_table.csv")
 
 CONFIG_RE = re.compile(r"^(regular|realworld)_(\d+\.\d+)_(\d+)$")
@@ -100,30 +111,61 @@ def parse_log(path: str, config_name: str, domain: str, threshold: float, batch_
     return rows
 
 
-def main() -> None:
-    all_rows = []
-    for entry in sorted(os.listdir(FINAL_RESULT_DIR)):
-        cm = CONFIG_RE.match(entry)
+def find_experiment_logs(root: str) -> dict[tuple[str, float, int], str]:
+    """Recursively find every experiment_log.txt whose parent directory name
+    matches CONFIG_RE anywhere under root. Config directories don't nest
+    inside each other, so a match stops further descent below it. If the
+    same (domain, threshold, batch_size) combo turns up more than once
+    (e.g. a stale archived copy alongside a fresh direct pipeline run), the
+    most-recently-modified experiment_log.txt wins.
+    """
+    found: dict[tuple[str, float, int], str] = {}
+    mtimes: dict[tuple[str, float, int], float] = {}
+    for dirpath, dirnames, _filenames in os.walk(root):
+        name = os.path.basename(dirpath)
+        cm = CONFIG_RE.match(name)
         if not cm:
             continue
-        domain, threshold, batch_size = cm.group(1), float(cm.group(2)), int(cm.group(3))
-        log_path = os.path.join(FINAL_RESULT_DIR, entry, "experiment_log.txt")
+        dirnames[:] = []  # don't descend into a matched config dir
+        log_path = os.path.join(dirpath, "experiment_log.txt")
         if not os.path.isfile(log_path):
             continue
+        key = (cm.group(1), float(cm.group(2)), int(cm.group(3)))
+        mtime = os.path.getmtime(log_path)
+        if key not in found or mtime > mtimes[key]:
+            if key in found and found[key] != log_path:
+                print(f"  [NOTE] {key}: using newer {log_path} (was {found[key]})")
+            found[key] = log_path
+            mtimes[key] = mtime
+    return found
+
+
+def main(search_root: str | None = None, out_csv: str | None = None) -> None:
+    root = search_root or DEFAULT_SEARCH_ROOT
+    out_path = out_csv or OUT_CSV
+
+    all_rows = []
+    logs = find_experiment_logs(root)
+    for (domain, threshold, batch_size), log_path in sorted(logs.items()):
+        entry = f"{domain}_{threshold:g}_{batch_size}"
         rows = parse_log(log_path, entry, domain, threshold, batch_size)
-        print(f"{entry}: parsed {len(rows)} rows")
+        print(f"{entry} ({log_path}): parsed {len(rows)} rows")
         all_rows.extend(rows)
 
     if not all_rows:
-        raise SystemExit("No rows parsed - check log format / path.")
+        raise SystemExit(f"No rows parsed - check log format / path under {root}.")
 
     fieldnames = list(all_rows[0].keys())
-    with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(all_rows)
-    print(f"\nWrote {len(all_rows)} rows -> {OUT_CSV}")
+    print(f"\nWrote {len(all_rows)} rows -> {out_path}")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--search_root", default=None, help="Override the test_result/ root to scan (for testing).")
+    parser.add_argument("--out_csv", default=None, help="Override the output CSV path (for testing).")
+    args = parser.parse_args()
+    main(search_root=args.search_root, out_csv=args.out_csv)
