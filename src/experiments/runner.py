@@ -606,3 +606,87 @@ def print_suite_summary(results: Dict[str, dict]) -> None:
             continue
 
         _print_one_suite(str(result_key), suite_results)
+
+
+_INSTANCE_KEY_RE = re.compile(r"^(.*)_instance_\d+$")
+
+
+def print_averaged_summary(results: Dict[str, dict], methods: Iterable[str] = DEFAULT_METHODS) -> None:
+    """When run_one_automata()/run_one_language() ran more than one test
+    instance per task (--num_test_instances > 1), print one extra table per
+    task with mean +/- std across instances for each method. The per-instance
+    tables print_suite_summary() prints above only ever show single-instance
+    numbers -- nothing else aggregates them, so with N instances a reader has
+    to average N separate tables by hand to get a task-level number.
+
+    No-op for a single suite_results dict (nothing to average across) or a
+    dict where every task only ran one instance.
+    """
+    if not results or any(method in results for method in methods):
+        return  # single-suite Case 1 -- nothing to average across.
+
+    grouped: Dict[str, list] = {}
+    totals: Dict[str, int] = {}
+    for key, suite in results.items():
+        m = _INSTANCE_KEY_RE.match(str(key))
+        code = m.group(1) if m else str(key)
+        totals[code] = totals.get(code, 0) + 1
+        if isinstance(suite, dict) and any(meth in suite for meth in methods):
+            grouped.setdefault(code, []).append(suite)
+
+    if not any(total > 1 for total in totals.values()):
+        return  # every task ran exactly one instance -- nothing to average.
+
+    print("\n" + "=" * 80)
+    print("  Averaged across test instances")
+    print("=" * 80)
+
+    for code, total in sorted(totals.items()):
+        suites = grouped.get(code, [])
+        n = len(suites)
+        print(f"\n  {code}  (n={n}/{total} valid instance{'s' if total != 1 else ''})")
+        if total <= 1:
+            print("    (only one instance -- nothing to average)")
+            continue
+        if n == 0:
+            print("    (every instance failed or was skipped -- nothing to average)")
+            continue
+
+        print("  " + "-" * 96)
+        print(
+            f"  | {'Method':12s} | {'Train agr (mean±std)':22s} | "
+            f"{'Val agr (mean±std)':22s} | {'States (mean±std)':18s} | {'Time(s) mean':12s} |"
+        )
+        print("  " + "-" * 96)
+
+        for method in methods:
+            method_suites = [s for s in suites if s.get(method)]
+            label = METHOD_LABELS.get(method, method)
+            if not method_suites:
+                print(f"  | {label:12s} | {'N/A':22s} | {'N/A':22s} | {'N/A':18s} | {'N/A':12s} |")
+                continue
+
+            train_vals = [_scalar(s[method].get("train_agreement")) for s in method_suites]
+            val_vals = [_scalar(s[method].get("validation_agreement")) for s in method_suites]
+            state_vals = [float(_state_count(s[method].get("states"))) for s in method_suites]
+            time_vals = [_scalar(s[method].get("time")) for s in method_suites]
+
+            def _mean_std(xs: list) -> tuple:
+                mean = sum(xs) / len(xs)
+                var = sum((x - mean) ** 2 for x in xs) / len(xs)
+                return mean, var ** 0.5
+
+            train_m, train_s = _mean_std(train_vals)
+            val_m, val_s = _mean_std(val_vals)
+            state_m, state_s = _mean_std(state_vals)
+            time_m = sum(time_vals) / len(time_vals)
+
+            print(
+                f"  | {label:12s} | {f'{train_m:.4f}±{train_s:.4f}':22s} | "
+                f"{f'{val_m:.4f}±{val_s:.4f}':22s} | {f'{state_m:.2f}±{state_s:.2f}':18s} | {time_m:12.1f} |"
+            )
+
+        print("  " + "-" * 96)
+        n_skipped = total - n
+        if n_skipped:
+            print(f"    ({n_skipped}/{total} instance(s) failed or were skipped -- excluded from the average above)")
