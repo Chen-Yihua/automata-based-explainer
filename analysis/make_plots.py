@@ -235,7 +235,7 @@ def combo_figure(rows, threshold: float, batch_size: int = 1000) -> str:
 \\end{{axis}}
 \\end{{tikzpicture}}
 \\caption{{DFA size and agreement before and after Beam Search refinement across six
-tasks (τ = {threshold}).}}
+tasks ($\\tau = {threshold}$).}}
 \\label{{fig:combo-tau{tau_tag}}}
 \\end{{figure}}
 """
