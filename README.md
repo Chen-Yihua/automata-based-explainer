@@ -118,7 +118,7 @@ pip install -r requirements.txt
 
 ## Baseline (SA/GA/PSO) 超參數調整
 
-`src/baselines/tune_baseline_params.py` 對應論文 5.3 節「多組 baseline 參數設定比較」。它在同一份 `shared_init.pkl`（跑實驗時會自動產生）上，對 SA candidate pool size、GA population size、PSO particle 數/candidate pool size 各掃一個小網格，其他設定（操作集合、agreement threshold、evaluation budget）固定不變。
+`src/baselines/tune_baseline_params.py` 對應論文 5.3 節「多組 baseline 參數設定比較」。它在同一份 `shared_init.pkl`（跑實驗時會自動產生）上，對 SA candidate pool size、GA population size、PSO particle 數/candidate pool size 各掃一個小網格，其他設定（操作集合、agreement threshold、evaluation budget）固定不變。每個 (演算法, 參數組合) 在全部六個任務上各跑一次，取跨任務平均後排名，避免單一任務的隨機性決定最終參數。
 
 ```bash
 python src/baselines/tune_baseline_params.py \
@@ -126,7 +126,24 @@ python src/baselines/tune_baseline_params.py \
     --datasets SecureHandshake,DocumentReleaseWorkflow
 ```
 
-輸出在 `test_result/tune_fairflow_baselines_<timestamp>/`：`tune_results.csv`、`best_by_algo.csv`（每個 dataset × 演算法的最佳參數）、`summary_top20.txt`。
+輸出在 `test_result/tune_fairflow_baselines_<timestamp>/`：
+- `tune_results.csv` — 每一次 (task, 演算法, 參數組合) 的原始結果。
+- `cross_task_by_algo.csv` — 每個 (演算法, 參數組合) 跨六個任務平均後的完整排名。
+- `best_by_algo_cross_task.csv` — 每個演算法排名第一的參數組合。
+
+**`best_by_algo_cross_task.csv` 會被主實驗自動讀取**：`run_regular_experiment.py`/`run_realworld_experiment.py` 執行時，`src/experiments/runner.py` 會自動找 `test_result/tune_*/best_by_algo_cross_task.csv` 裡最新的一份並套用，不需要手動把數字抄進程式碼；如果從未跑過調參（找不到檔案），就照舊退回寫死的預設值（SA pool=10、GA population=10、PSO particles=5/pool=5）。
+
+## 結果整理與畫圖
+
+實驗（`run_regular_experiment.py`/`run_realworld_experiment.py`）結束後，`test_result/` 底下會有 `regular_<threshold>_<batch_size>/`、`realworld_<threshold>_<batch_size>/` 這樣的資料夾，每個底下是各任務的 `experiment_log.txt`。接下來兩步把它們整理成圖：
+
+```bash
+python analysis/parse_results.py
+python analysis/make_plots.py
+```
+
+- `parse_results.py` 會遞迴掃描整個 `test_result/`，抓出所有資料夾名稱符合 `regular_<threshold>_<batch_size>` / `realworld_<threshold>_<batch_size>` 的實驗（不管在 `test_result/` 底下哪一層），解析每份 `experiment_log.txt` 的表格，彙整成 `analysis/summary_table.csv`；如果同一組設定在多個地方各有一份，會自動選 `experiment_log.txt` 較新的那份，並印出取捨訊息。只讀取 `test_result/`，不會寫入。
+- `make_plots.py` 讀 `analysis/summary_table.csv`，輸出對應論文第五章的 LaTeX/pgfplots 圖到 `analysis/plots/`：每張圖是一個完整的 `\begin{figure}...\end{figure}` 區塊，可直接 `\input{}` 進論文；同時會嘗試用 `pdflatex`/`pdftoppm` 產生 `.png` 預覽。
 
 ---
 
