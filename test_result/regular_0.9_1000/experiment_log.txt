@@ -1,0 +1,1355 @@
+
+======================================================================
+  AUTOMATA: SecureHandshake
+======================================================================
+  [TEACHER] Loading automata DFA: secure_handshake.dot
+  DFA: 33 states, alphabet=['ack', 'alert', 'cert', 'hello', 'key', 'retry', 'verify']
+  Selected test instances: 1
+    [00] len=11 label=1 seq=['hello', 'cert', 'verify', 'key', 'ack', 'key', 'ack', 'cert', 'verify', 'key', 'ack']
+
+[RUN SEARCH SUITE] methods=('beam', 'sa', 'ga', 'pso')  output_dir=/home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00
+--------------------------------------------
+[Beam Iter 0] op=INIT, candidates=1, valid=1, evaluations=1/3000
+[Beam Iter 0] selected=1, best_agreement=0.8920, best_states=31, n_samples=[1000]
+  [MATA] Wrote 217 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 1] op=DELTA, candidates=31, valid=31, evaluations=32/3000
+[Beam Iter 1] selected=1, best_agreement=0.8936, best_states=30, n_samples=[2001]
+[Beam Iter 2] op=DELETE+MERGE, candidates=48, valid=48, evaluations=80/3000
+[Beam Iter 2] selected=1, best_agreement=0.8946, best_states=29, n_samples=[2001]
+  [MATA] Wrote 203 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 3] op=DELTA, candidates=29, valid=29, evaluations=109/3000
+[Beam Iter 3] selected=1, best_agreement=0.8946, best_states=29, n_samples=[2001]
+[Beam Iter 4] op=DELETE+MERGE, candidates=47, valid=47, evaluations=156/3000
+[Beam Iter 4] selected=1, best_agreement=0.8946, best_states=28, n_samples=[2001]
+  [MATA] Wrote 196 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 5] op=DELTA, candidates=28, valid=28, evaluations=184/3000
+[Beam Iter 5] selected=1, best_agreement=0.8966, best_states=28, n_samples=[2001]
+[Beam Iter 6] op=DELETE+MERGE, candidates=46, valid=46, evaluations=230/3000
+[Beam Iter 6] selected=1, best_agreement=0.9005, best_states=27, n_samples=[2001]
+  [MATA] Wrote 189 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 7] op=DELTA, candidates=27, valid=27, evaluations=257/3000
+[Beam Iter 7] selected=1, best_agreement=0.9005, best_states=27, n_samples=[2001]
+[Beam Iter 8] op=DELETE+MERGE, candidates=45, valid=45, evaluations=302/3000
+[Beam Iter 8] selected=1, best_agreement=0.8917, best_states=26, n_samples=[3001]
+  [MATA] Wrote 182 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 9] op=DELTA, candidates=26, valid=26, evaluations=328/3000
+[Beam Iter 9] selected=1, best_agreement=0.9025, best_states=26, n_samples=[2001]
+[Beam Iter 10] op=DELETE+MERGE, candidates=44, valid=44, evaluations=372/3000
+[Beam Iter 10] selected=1, best_agreement=0.9000, best_states=25, n_samples=[2001]
+  [MATA] Wrote 175 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 11] op=DELTA, candidates=25, valid=25, evaluations=397/3000
+[Beam Iter 11] selected=1, best_agreement=0.9000, best_states=25, n_samples=[2001]
+[Beam Iter 12] op=DELETE+MERGE, candidates=43, valid=43, evaluations=440/3000
+[Beam Iter 12] selected=1, best_agreement=0.8976, best_states=24, n_samples=[2001]
+  [MATA] Wrote 168 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 13] op=DELTA, candidates=24, valid=24, evaluations=464/3000
+[Beam Iter 13] selected=1, best_agreement=0.9065, best_states=24, n_samples=[2001]
+[Beam Iter 14] op=DELETE+MERGE, candidates=40, valid=40, evaluations=504/3000
+[Beam Iter 14] selected=1, best_agreement=0.9075, best_states=23, n_samples=[2001]
+  [MATA] Wrote 161 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 15] op=DELTA, candidates=23, valid=23, evaluations=527/3000
+[Beam Iter 15] selected=1, best_agreement=0.9120, best_states=23, n_samples=[2001]
+[Beam Iter 16] op=DELETE+MERGE, candidates=41, valid=41, evaluations=568/3000
+[Beam Iter 16] selected=1, best_agreement=0.9070, best_states=22, n_samples=[2001]
+  [MATA] Wrote 154 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 17] op=DELTA, candidates=22, valid=22, evaluations=590/3000
+[Beam Iter 17] selected=1, best_agreement=0.9075, best_states=22, n_samples=[2001]
+[Beam Iter 18] op=DELETE+MERGE, candidates=40, valid=40, evaluations=630/3000
+[Beam Iter 18] selected=1, best_agreement=0.9100, best_states=21, n_samples=[2001]
+  [MATA] Wrote 147 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 19] op=DELTA, candidates=21, valid=21, evaluations=651/3000
+[Beam Iter 19] selected=1, best_agreement=0.9100, best_states=21, n_samples=[2001]
+[Beam Iter 20] op=DELETE+MERGE, candidates=39, valid=39, evaluations=690/3000
+[Beam Iter 20] selected=1, best_agreement=0.9080, best_states=20, n_samples=[2001]
+  [MATA] Wrote 140 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 21] op=DELTA, candidates=20, valid=20, evaluations=710/3000
+[Beam Iter 21] selected=1, best_agreement=0.9080, best_states=20, n_samples=[2001]
+[Beam Iter 22] op=DELETE+MERGE, candidates=38, valid=38, evaluations=748/3000
+[Beam Iter 22] selected=1, best_agreement=0.9110, best_states=19, n_samples=[2001]
+  [MATA] Wrote 133 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 23] op=DELTA, candidates=19, valid=19, evaluations=767/3000
+[Beam Iter 23] selected=1, best_agreement=0.9185, best_states=19, n_samples=[2001]
+[Beam Iter 24] op=DELETE+MERGE, candidates=37, valid=37, evaluations=804/3000
+[Beam Iter 24] selected=1, best_agreement=0.9135, best_states=18, n_samples=[2001]
+  [MATA] Wrote 126 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 25] op=DELTA, candidates=18, valid=18, evaluations=822/3000
+[Beam Iter 25] selected=1, best_agreement=0.9245, best_states=18, n_samples=[2001]
+[Beam Iter 26] op=DELETE+MERGE, candidates=36, valid=36, evaluations=858/3000
+[Beam Iter 26] selected=1, best_agreement=0.9221, best_states=17, n_samples=[1001]
+  [MATA] Wrote 119 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 27] op=DELTA, candidates=17, valid=17, evaluations=875/3000
+[Beam Iter 27] selected=1, best_agreement=0.9115, best_states=17, n_samples=[2001]
+[Beam Iter 28] op=DELETE+MERGE, candidates=35, valid=35, evaluations=910/3000
+[Beam Iter 28] selected=1, best_agreement=0.9160, best_states=16, n_samples=[2001]
+  [MATA] Wrote 112 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 29] op=DELTA, candidates=16, valid=16, evaluations=926/3000
+[Beam Iter 29] selected=1, best_agreement=0.9225, best_states=16, n_samples=[2001]
+[Beam Iter 30] op=DELETE+MERGE, candidates=34, valid=34, evaluations=960/3000
+[Beam Iter 30] selected=1, best_agreement=0.9160, best_states=15, n_samples=[2001]
+  [MATA] Wrote 105 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 31] op=DELTA, candidates=15, valid=15, evaluations=975/3000
+[Beam Iter 31] selected=1, best_agreement=0.9160, best_states=15, n_samples=[2001]
+[Beam Iter 32] op=DELETE+MERGE, candidates=33, valid=33, evaluations=1008/3000
+[Beam Iter 32] selected=1, best_agreement=0.9130, best_states=14, n_samples=[2001]
+  [MATA] Wrote 98 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 33] op=DELTA, candidates=14, valid=14, evaluations=1022/3000
+[Beam Iter 33] selected=1, best_agreement=0.9205, best_states=14, n_samples=[2001]
+[Beam Iter 34] op=DELETE+MERGE, candidates=32, valid=32, evaluations=1054/3000
+[Beam Iter 34] selected=1, best_agreement=0.9301, best_states=13, n_samples=[1001]
+  [MATA] Wrote 91 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 35] op=DELTA, candidates=13, valid=13, evaluations=1067/3000
+[Beam Iter 35] selected=1, best_agreement=0.9301, best_states=13, n_samples=[1001]
+[Beam Iter 36] op=DELETE+MERGE, candidates=31, valid=31, evaluations=1098/3000
+[Beam Iter 36] selected=1, best_agreement=0.9365, best_states=12, n_samples=[2001]
+  [MATA] Wrote 84 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 37] op=DELTA, candidates=12, valid=12, evaluations=1110/3000
+[Beam Iter 37] selected=1, best_agreement=0.9365, best_states=12, n_samples=[2001]
+[Beam Iter 38] op=DELETE+MERGE, candidates=30, valid=30, evaluations=1140/3000
+[Beam Iter 38] selected=1, best_agreement=0.9431, best_states=11, n_samples=[1001]
+  [MATA] Wrote 77 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 39] op=DELTA, candidates=11, valid=11, evaluations=1151/3000
+[Beam Iter 39] selected=1, best_agreement=0.9431, best_states=11, n_samples=[1001]
+[Beam Iter 40] op=DELETE+MERGE, candidates=29, valid=29, evaluations=1180/3000
+[Beam Iter 40] selected=1, best_agreement=0.9421, best_states=10, n_samples=[1001]
+  [MATA] Wrote 70 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 41] op=DELTA, candidates=10, valid=10, evaluations=1190/3000
+[Beam Iter 41] selected=1, best_agreement=0.9450, best_states=10, n_samples=[2001]
+[Beam Iter 42] op=DELETE+MERGE, candidates=24, valid=24, evaluations=1214/3000
+[Beam Iter 42] selected=1, best_agreement=0.9230, best_states=9, n_samples=[2001]
+  [MATA] Wrote 63 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 43] op=DELTA, candidates=9, valid=9, evaluations=1223/3000
+[Beam Iter 43] selected=1, best_agreement=0.9431, best_states=9, n_samples=[1001]
+[Beam Iter 44] op=DELETE+MERGE, candidates=20, valid=20, evaluations=1243/3000
+[Beam Iter 44] selected=1, best_agreement=0.9130, best_states=8, n_samples=[2001]
+  [MATA] Wrote 56 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 45] op=DELTA, candidates=8, valid=8, evaluations=1251/3000
+[Beam Iter 45] selected=1, best_agreement=0.9191, best_states=8, n_samples=[1001]
+[Beam Iter 46] op=DELETE+MERGE, candidates=17, valid=17, evaluations=1268/3000
+[Beam Iter 46] selected=1, best_agreement=0.9040, best_states=7, n_samples=[2001]
+  [MATA] Wrote 49 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 47] op=DELTA, candidates=7, valid=7, evaluations=1275/3000
+[Beam Iter 47] selected=1, best_agreement=0.9271, best_states=7, n_samples=[1001]
+[Beam Iter 48] op=DELETE+MERGE, candidates=12, valid=12, evaluations=1287/3000
+[Beam Iter 48] selected=1, best_agreement=0.8766, best_states=6, n_samples=[2001]
+  [MATA] Wrote 42 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 49] op=DELTA, candidates=6, valid=6, evaluations=1293/3000
+[Beam Iter 49] selected=1, best_agreement=0.8831, best_states=6, n_samples=[2001]
+[Beam Iter 50] op=DELETE+MERGE, candidates=7, valid=7, evaluations=1300/3000
+[Beam Iter 50] selected=1, best_agreement=0.8511, best_states=5, n_samples=[2001]
+  [MATA] Wrote 35 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 51] op=DELTA, candidates=5, valid=5, evaluations=1305/3000
+[Beam Iter 51] selected=1, best_agreement=0.8751, best_states=5, n_samples=[2001]
+[Beam Iter 52] op=DELETE+MERGE, candidates=4, valid=4, evaluations=1309/3000
+[Beam Iter 52] selected=1, best_agreement=0.8621, best_states=4, n_samples=[1001]
+  [MATA] Wrote 28 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 53] op=DELTA, candidates=4, valid=4, evaluations=1313/3000
+[Beam Iter 53] selected=1, best_agreement=0.8556, best_states=4, n_samples=[2001]
+[Beam Iter 54] op=DELETE+MERGE, candidates=1, valid=1, evaluations=1314/3000
+[Beam Iter 54] selected=1, best_agreement=0.7493, best_states=3, n_samples=[1001]
+  [MATA] Wrote 21 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/beam/dfa_explicit.mata
+[Beam Iter 55] op=DELTA, candidates=3, valid=3, evaluations=1317/3000
+[Beam Iter 55] selected=1, best_agreement=0.7541, best_states=3, n_samples=[2001]
+[Beam] No candidates proposed. Stopping.
+  [SharedInit] Saved to /home/yihua/anchor-llm/test_result/regular_0.9_1000/SecureHandshake/instance_00/shared/shared_init.pkl (31 states, 1000 training samples, 1000 validation samples)
+  [Baseline budget] Using beam's actual evaluations (1317) as SA/GA/PSO max_evaluations
+======================================================================
+[SA] Initialising Simulated Annealing…
+[Init] Using shared init: 31 states, 1000 validation samples, 1000 training samples
+[SA] Running 132 steps with T_max=10.0, T_min=0.001, candidate_pool=10 (budget=1317)
+[SA] Initial DFA: 31 states, initial training agreement: 0.8920
+  [SA-iter1] NEW best from pool(10): agreement=0.8910, states=29, evals: 10/1317
+  [SA-iter2] NEW best from pool(10): agreement=0.8900, states=27, evals: 20/1317
+  [SA-iter3] NEW best from pool(10): agreement=0.8950, states=26, evals: 30/1317
+  [SA-iter4] NEW best from pool(10): agreement=0.8650, states=24, evals: 40/1317
+  [SA-iter5] NEW best from pool(10): agreement=0.8630, states=22, evals: 50/1317
+  [SA-iter6] NEW best from pool(10): agreement=0.9060, states=21, evals: 60/1317
+  [SA-iter7] NEW best from pool(10): agreement=0.9080, states=20, evals: 70/1317
+  [SA-iter8] NEW best from pool(10): agreement=0.9090, states=19, evals: 80/1317
+  [SA-iter9] NEW best from pool(10): agreement=0.9070, states=7, evals: 90/1317
+  [SA-iter10] NEW best from pool(10): agreement=0.9000, states=6, evals: 100/1317
+  [SA-iter11] NEW best from pool(10): agreement=0.8790, states=5, evals: 110/1317
+  [SA] Early stopping: 10 iterations without improvement
+[SA] Completed 210 evaluations
+[SA] Best DFA: 5 states, Best agreement: 0.8790
+[SA] Operator summary | evaluations=210/1317
+  DELETE :    46 (21.90%)
+  MERGE  :    72 (34.29%)
+  DELTA  :    92 (43.81%)
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 146
+  Initial states (from shared_init): 31
+  [agreement mode] 17 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=6, training_agreement=0.9000
+======================================================================
+[GA-Original] Initialising Genetic Algorithm (mutation-only, no crossover)…
+[Init] Using shared init: 31 states, 1000 validation samples, 1000 training samples
+[GA-Init] Generating initial population of 10 individuals...
+[GA-Init] Initial DFA: 31 states, initial training agreement: 0.8920
+[GA-Init] Evaluating initial population
+
+[GA-Gen] Generation 1, evals: 11/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 29, Avg states: 29.7 [IMPROVED]
+
+[GA-Gen] Generation 2, evals: 21/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 28, Avg states: 28.8 [IMPROVED]
+
+[GA-Gen] Generation 3, evals: 31/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 27, Avg states: 28.0 [IMPROVED]
+
+[GA-Gen] Generation 4, evals: 41/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 27, Avg states: 27.2 [IMPROVED]
+
+[GA-Gen] Generation 5, evals: 51/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 25, Avg states: 26.5 [IMPROVED]
+
+[GA-Gen] Generation 6, evals: 61/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 24, Avg states: 25.8 [IMPROVED]
+
+[GA-Gen] Generation 7, evals: 71/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 23, Avg states: 24.3 [IMPROVED]
+
+[GA-Gen] Generation 8, evals: 81/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 22, Avg states: 23.3 [IMPROVED]
+
+[GA-Gen] Generation 9, evals: 91/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 21, Avg states: 22.0 [IMPROVED]
+
+[GA-Gen] Generation 10, evals: 101/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 20, Avg states: 20.7 [IMPROVED]
+
+[GA-Gen] Generation 11, evals: 111/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 19, Avg states: 20.0 [IMPROVED]
+
+[GA-Gen] Generation 12, evals: 121/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 18, Avg states: 19.0 [IMPROVED]
+
+[GA-Gen] Generation 13, evals: 131/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 18, Avg states: 18.5 [IMPROVED]
+
+[GA-Gen] Generation 14, evals: 141/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 16, Avg states: 17.3 [IMPROVED]
+
+[GA-Gen] Generation 15, evals: 151/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 16, Avg states: 16.3 [IMPROVED]
+
+[GA-Gen] Generation 16, evals: 161/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 14, Avg states: 15.3 [IMPROVED]
+
+[GA-Gen] Generation 17, evals: 171/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 14, Avg states: 14.6 (no improve: 1/10)
+
+[GA-Gen] Generation 18, evals: 181/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 13, Avg states: 13.7 [IMPROVED]
+
+[GA-Gen] Generation 19, evals: 191/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 11, Avg states: 12.3 [IMPROVED]
+
+[GA-Gen] Generation 20, evals: 201/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 8, Avg states: 11.1 [IMPROVED]
+
+[GA-Gen] Generation 21, evals: 211/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 7, Avg states: 9.5 [IMPROVED]
+
+[GA-Gen] Generation 22, evals: 221/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 6, Avg states: 9.3 (no improve: 1/10)
+
+[GA-Gen] Generation 23, evals: 231/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 8.2 (no improve: 2/10)
+
+[GA-Gen] Generation 24, evals: 241/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 7.0 (no improve: 3/10)
+
+[GA-Gen] Generation 25, evals: 251/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 5.7 [IMPROVED]
+
+[GA-Gen] Generation 26, evals: 261/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.7 [IMPROVED]
+
+[GA-Gen] Generation 27, evals: 271/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.5 [IMPROVED]
+
+[GA-Gen] Generation 28, evals: 281/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.0 (no improve: 1/10)
+
+[GA-Gen] Generation 29, evals: 291/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.3 (no improve: 2/10)
+
+[GA-Gen] Generation 30, evals: 301/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.3 (no improve: 3/10)
+
+[GA-Gen] Generation 31, evals: 311/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.1 (no improve: 4/10)
+
+[GA-Gen] Generation 32, evals: 321/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.9 (no improve: 5/10)
+
+[GA-Gen] Generation 33, evals: 331/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.9 (no improve: 6/10)
+
+[GA-Gen] Generation 34, evals: 341/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.6 [IMPROVED]
+
+[GA-Gen] Generation 35, evals: 351/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 4.9 (no improve: 1/10)
+
+[GA-Gen] Generation 36, evals: 361/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 4.6 (no improve: 2/10)
+
+[GA-Gen] Generation 37, evals: 371/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 4.5 (no improve: 3/10)
+
+[GA-Gen] Generation 38, evals: 381/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.9 (no improve: 4/10)
+
+[GA-Gen] Generation 39, evals: 391/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 4.7 (no improve: 5/10)
+
+[GA-Gen] Generation 40, evals: 401/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 4.9 (no improve: 6/10)
+
+[GA-Gen] Generation 41, evals: 411/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 4.4 (no improve: 7/10)
+
+[GA-Gen] Generation 42, evals: 421/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 4.7 (no improve: 8/10)
+
+[GA-Gen] Generation 43, evals: 431/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 4.6 (no improve: 9/10)
+
+[GA-Gen] Generation 44, evals: 441/1317
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.2 (no improve: 10/10)
+  [GA] Early stopping: 10 generations without improvement
+
+[GA-Original] Completed 44 generations, 365 candidates total, final evals: 451/1317
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 365
+  Initial states (from shared_init): 31
+  [agreement mode] 66 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=13, training_agreement=0.9080
+======================================================================
+[PSO] Initialising Particle Swarm Optimisation (PSOAutomataOptimizer)…
+[Init] Using shared init: 31 states, 1000 validation samples, 1000 training samples
+    [GBEST UPDATE] New best: 31 states, agreement=0.8920, val_agr=1.0000, loss=0.1080
+[PSO Init] Initial DFA: 31 states, agreement=0.8920, val_agreement=1.0000
+[PSO Init] Iterative DFA refinement mode: each particle keeps a current DFA.
+
+[PSO] Starting optimization...
+  Initial DFA: 31 states, initial training agreement: 0.8920
+  Particles=5, candidate_pool_per_particle=5, iterations=53
+
+[PSO] Starting iterative DFA-level optimization...
+  Particles: 5
+  Candidate pool per particle: 5
+  Iterations: 53
+  Initial states: 31
+  Particle state: current DFA is carried to the next iteration
+    [GBEST UPDATE] iter=1 particle=0 candidate=1 New best: 30 states, agreement=0.8920, loss=0.0757
+    [GBEST UPDATE] iter=1 particle=1 candidate=0 New best: 28 states, agreement=0.8880, loss=0.0152
+    [GBEST UPDATE] iter=2 particle=1 candidate=0 New best: 27 states, agreement=0.8950, loss=-0.0240
+    [GBEST UPDATE] iter=3 particle=1 candidate=2 New best: 26 states, agreement=0.9060, loss=-0.0673
+    [GBEST UPDATE] iter=4 particle=1 candidate=3 New best: 25 states, agreement=0.9080, loss=-0.1015
+    [GBEST UPDATE] iter=5 particle=1 candidate=0 New best: 24 states, agreement=0.9100, loss=-0.1358
+    [GBEST UPDATE] iter=6 particle=1 candidate=4 New best: 23 states, agreement=0.9100, loss=-0.1681
+    [GBEST UPDATE] iter=7 particle=1 candidate=4 New best: 22 states, agreement=0.8880, loss=-0.1783
+    [GBEST UPDATE] iter=7 particle=2 candidate=3 New best: 22 states, agreement=0.8950, loss=-0.1853
+    [GBEST UPDATE] iter=7 particle=3 candidate=3 New best: 22 states, agreement=0.9020, loss=-0.1923
+    [GBEST UPDATE] iter=8 particle=0 candidate=1 New best: 22 states, agreement=0.9070, loss=-0.1973
+    [GBEST UPDATE] iter=8 particle=1 candidate=0 New best: 21 states, agreement=0.8850, loss=-0.2076
+    [GBEST UPDATE] iter=8 particle=2 candidate=2 New best: 21 states, agreement=0.8940, loss=-0.2166
+    [GBEST UPDATE] iter=8 particle=3 candidate=3 New best: 21 states, agreement=0.9040, loss=-0.2266
+    [GBEST UPDATE] iter=9 particle=0 candidate=4 New best: 21 states, agreement=0.9120, loss=-0.2346
+    [GBEST UPDATE] iter=9 particle=1 candidate=3 New best: 20 states, agreement=0.8940, loss=-0.2488
+    [GBEST UPDATE] iter=9 particle=2 candidate=1 New best: 20 states, agreement=0.9010, loss=-0.2558
+    [GBEST UPDATE] iter=9 particle=3 candidate=0 New best: 20 states, agreement=0.9040, loss=-0.2588
+    [GBEST UPDATE] iter=10 particle=1 candidate=3 New best: 19 states, agreement=0.8810, loss=-0.2681
+    [GBEST UPDATE] iter=10 particle=2 candidate=1 New best: 19 states, agreement=0.9010, loss=-0.2881
+    [GBEST UPDATE] iter=11 particle=0 candidate=3 New best: 19 states, agreement=0.9060, loss=-0.2931
+    [GBEST UPDATE] iter=11 particle=1 candidate=3 New best: 18 states, agreement=0.8820, loss=-0.3014
+    [GBEST UPDATE] iter=11 particle=2 candidate=1 New best: 18 states, agreement=0.8980, loss=-0.3174
+    [GBEST UPDATE] iter=11 particle=3 candidate=1 New best: 18 states, agreement=0.9040, loss=-0.3234
+    [GBEST UPDATE] iter=12 particle=0 candidate=1 New best: 17 states, agreement=0.9090, loss=-0.3606
+    [GBEST UPDATE] iter=12 particle=1 candidate=2 New best: 16 states, agreement=0.8860, loss=-0.3699
+    [GBEST UPDATE] iter=13 particle=0 candidate=1 New best: 16 states, agreement=0.9080, loss=-0.3919
+    [GBEST UPDATE] iter=13 particle=1 candidate=3 New best: 15 states, agreement=0.8880, loss=-0.4041
+    [GBEST UPDATE] iter=14 particle=0 candidate=1 New best: 15 states, agreement=0.9200, loss=-0.4361
+    [GBEST UPDATE] iter=14 particle=1 candidate=2 New best: 13 states, agreement=0.8800, loss=-0.4606
+    [GBEST UPDATE] iter=15 particle=0 candidate=1 New best: 14 states, agreement=0.9190, loss=-0.4674
+    [GBEST UPDATE] iter=15 particle=1 candidate=1 New best: 12 states, agreement=0.8760, loss=-0.4889
+    [GBEST UPDATE] iter=16 particle=1 candidate=3 New best: 11 states, agreement=0.9170, loss=-0.5622
+    [GBEST UPDATE] iter=17 particle=1 candidate=0 New best: 10 states, agreement=0.9340, loss=-0.6114
+    [GBEST UPDATE] iter=18 particle=1 candidate=4 New best: 8 states, agreement=0.9290, loss=-0.6709
+    [GBEST UPDATE] iter=19 particle=1 candidate=3 New best: 7 states, agreement=0.9130, loss=-0.6872
+    [GBEST UPDATE] iter=20 particle=1 candidate=3 New best: 6 states, agreement=0.8950, loss=-0.7015
+    [GBEST UPDATE] iter=21 particle=1 candidate=1 New best: 5 states, agreement=0.9250, loss=-0.7637
+    [GBEST UPDATE] iter=29 particle=1 candidate=1 New best: 5 states, agreement=0.9300, loss=-0.7687
+  [PSO] Early stopping: 10 iterations without improvement
+[PSO] Optimization stopped: PSO early stopping: no improvement for 10 iterations
+
+[PSO] Finished optimization
+  Evaluations: 805/1317
+  Best agreement: 0.9300
+  Best states: 5, val_agr=0.9230
+
+[PSO] Optimization completed successfully
+  Best states: 5
+  Best agreement: 0.9300
+  Best validation agreement: 0.9230
+  Best loss: -0.7687
+  [PSO] Evaluations used: 805 / 1317
+  [PSO] Early stopping: reached 2 states
+
+[PSO] Total candidates collected: 665
+[PSO] Operator summary | evaluations=805/1317
+  DELETE :   461 (57.34%)
+  MERGE  :   175 (21.77%)
+  DELTA  :   168 (20.90%)
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 665
+  Initial states (from shared_init): 31
+  [agreement mode] 105 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=5, training_agreement=0.9250
+
+======================================================================
+  AUTOMATA: DocumentReleaseWorkflow
+======================================================================
+  [TEACHER] Loading automata DFA: document_release_workflow.dot
+  DFA: 34 states, alphabet=['approve', 'assign', 'comment', 'draft', 'hold', 'publish', 'review', 'revise']
+  Selected test instances: 1
+    [00] len=10 label=1 seq=['draft', 'review', 'review', 'review', 'approve', 'comment', 'comment', 'approve', 'comment', 'publish']
+
+[RUN SEARCH SUITE] methods=('beam', 'sa', 'ga', 'pso')  output_dir=/home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00
+--------------------------------------------
+[Beam Iter 0] op=INIT, candidates=1, valid=1, evaluations=1/3000
+[Beam Iter 0] selected=1, best_agreement=0.8890, best_states=27, n_samples=[1000]
+  [MATA] Wrote 216 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 1] op=DELTA, candidates=27, valid=27, evaluations=28/3000
+[Beam Iter 1] selected=1, best_agreement=0.9090, best_states=27, n_samples=[2001]
+[Beam Iter 2] op=DELETE+MERGE, candidates=44, valid=44, evaluations=72/3000
+[Beam Iter 2] selected=1, best_agreement=0.9291, best_states=26, n_samples=[1001]
+  [MATA] Wrote 208 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 3] op=DELTA, candidates=26, valid=26, evaluations=98/3000
+[Beam Iter 3] selected=1, best_agreement=0.9220, best_states=26, n_samples=[2001]
+[Beam Iter 4] op=DELETE+MERGE, candidates=43, valid=43, evaluations=141/3000
+[Beam Iter 4] selected=1, best_agreement=0.9295, best_states=23, n_samples=[2001]
+  [MATA] Wrote 184 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 5] op=DELTA, candidates=23, valid=23, evaluations=164/3000
+[Beam Iter 5] selected=1, best_agreement=0.9341, best_states=23, n_samples=[1001]
+[Beam Iter 6] op=DELETE+MERGE, candidates=40, valid=40, evaluations=204/3000
+[Beam Iter 6] selected=1, best_agreement=0.9315, best_states=22, n_samples=[2001]
+  [MATA] Wrote 176 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 7] op=DELTA, candidates=22, valid=22, evaluations=226/3000
+[Beam Iter 7] selected=1, best_agreement=0.9441, best_states=22, n_samples=[1001]
+[Beam Iter 8] op=DELETE+MERGE, candidates=40, valid=40, evaluations=266/3000
+[Beam Iter 8] selected=1, best_agreement=0.9401, best_states=21, n_samples=[1001]
+  [MATA] Wrote 168 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 9] op=DELTA, candidates=21, valid=21, evaluations=287/3000
+[Beam Iter 9] selected=1, best_agreement=0.9401, best_states=21, n_samples=[1001]
+[Beam Iter 10] op=DELETE+MERGE, candidates=39, valid=39, evaluations=326/3000
+[Beam Iter 10] selected=1, best_agreement=0.9401, best_states=20, n_samples=[1001]
+  [MATA] Wrote 160 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 11] op=DELTA, candidates=20, valid=20, evaluations=346/3000
+[Beam Iter 11] selected=1, best_agreement=0.9381, best_states=20, n_samples=[1001]
+[Beam Iter 12] op=DELETE+MERGE, candidates=38, valid=38, evaluations=384/3000
+[Beam Iter 12] selected=1, best_agreement=0.9325, best_states=19, n_samples=[2001]
+  [MATA] Wrote 152 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 13] op=DELTA, candidates=19, valid=19, evaluations=403/3000
+[Beam Iter 13] selected=1, best_agreement=0.9371, best_states=19, n_samples=[1001]
+[Beam Iter 14] op=DELETE+MERGE, candidates=37, valid=37, evaluations=440/3000
+[Beam Iter 14] selected=1, best_agreement=0.9380, best_states=18, n_samples=[2001]
+  [MATA] Wrote 144 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 15] op=DELTA, candidates=18, valid=18, evaluations=458/3000
+[Beam Iter 15] selected=1, best_agreement=0.9441, best_states=18, n_samples=[1001]
+[Beam Iter 16] op=DELETE+MERGE, candidates=36, valid=36, evaluations=494/3000
+[Beam Iter 16] selected=1, best_agreement=0.9351, best_states=16, n_samples=[1001]
+  [MATA] Wrote 128 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 17] op=DELTA, candidates=16, valid=16, evaluations=510/3000
+[Beam Iter 17] selected=1, best_agreement=0.9361, best_states=16, n_samples=[1001]
+[Beam Iter 18] op=DELETE+MERGE, candidates=34, valid=34, evaluations=544/3000
+[Beam Iter 18] selected=1, best_agreement=0.9381, best_states=15, n_samples=[1001]
+  [MATA] Wrote 120 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 19] op=DELTA, candidates=15, valid=15, evaluations=559/3000
+[Beam Iter 19] selected=1, best_agreement=0.9381, best_states=15, n_samples=[1001]
+[Beam Iter 20] op=DELETE+MERGE, candidates=33, valid=33, evaluations=592/3000
+[Beam Iter 20] selected=1, best_agreement=0.9341, best_states=14, n_samples=[1001]
+  [MATA] Wrote 112 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 21] op=DELTA, candidates=14, valid=14, evaluations=606/3000
+[Beam Iter 21] selected=1, best_agreement=0.9405, best_states=14, n_samples=[2001]
+[Beam Iter 22] op=DELETE+MERGE, candidates=32, valid=32, evaluations=638/3000
+[Beam Iter 22] selected=1, best_agreement=0.9331, best_states=13, n_samples=[1001]
+  [MATA] Wrote 104 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 23] op=DELTA, candidates=13, valid=13, evaluations=651/3000
+[Beam Iter 23] selected=1, best_agreement=0.9401, best_states=13, n_samples=[1001]
+[Beam Iter 24] op=DELETE+MERGE, candidates=31, valid=31, evaluations=682/3000
+[Beam Iter 24] selected=1, best_agreement=0.9430, best_states=12, n_samples=[2001]
+  [MATA] Wrote 96 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 25] op=DELTA, candidates=12, valid=12, evaluations=694/3000
+[Beam Iter 25] selected=1, best_agreement=0.9461, best_states=12, n_samples=[1001]
+[Beam Iter 26] op=DELETE+MERGE, candidates=30, valid=30, evaluations=724/3000
+[Beam Iter 26] selected=1, best_agreement=0.9500, best_states=11, n_samples=[1001]
+  [MATA] Wrote 88 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 27] op=DELTA, candidates=11, valid=11, evaluations=735/3000
+[Beam Iter 27] selected=1, best_agreement=0.9540, best_states=11, n_samples=[1001]
+[Beam Iter 28] op=DELETE+MERGE, candidates=29, valid=29, evaluations=764/3000
+[Beam Iter 28] selected=1, best_agreement=0.9491, best_states=10, n_samples=[1001]
+  [MATA] Wrote 80 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 29] op=DELTA, candidates=10, valid=10, evaluations=774/3000
+[Beam Iter 29] selected=1, best_agreement=0.9600, best_states=10, n_samples=[1001]
+[Beam Iter 30] op=DELETE+MERGE, candidates=28, valid=28, evaluations=802/3000
+[Beam Iter 30] selected=1, best_agreement=0.9660, best_states=9, n_samples=[1001]
+  [MATA] Wrote 72 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 31] op=DELTA, candidates=9, valid=9, evaluations=811/3000
+[Beam Iter 31] selected=1, best_agreement=0.9750, best_states=9, n_samples=[1001]
+[Beam Iter 32] op=DELETE+MERGE, candidates=23, valid=23, evaluations=834/3000
+[Beam Iter 32] selected=1, best_agreement=0.9630, best_states=8, n_samples=[2001]
+  [MATA] Wrote 64 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 33] op=DELTA, candidates=8, valid=8, evaluations=842/3000
+[Beam Iter 33] selected=1, best_agreement=0.9770, best_states=8, n_samples=[1001]
+[Beam Iter 34] op=DELETE+MERGE, candidates=17, valid=17, evaluations=859/3000
+[Beam Iter 34] selected=1, best_agreement=0.9740, best_states=7, n_samples=[1001]
+  [MATA] Wrote 56 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 35] op=DELTA, candidates=7, valid=7, evaluations=866/3000
+[Beam Iter 35] selected=1, best_agreement=0.9740, best_states=7, n_samples=[1001]
+[Beam Iter 36] op=DELETE+MERGE, candidates=12, valid=12, evaluations=878/3000
+[Beam Iter 36] selected=1, best_agreement=0.9660, best_states=6, n_samples=[1001]
+  [MATA] Wrote 48 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 37] op=DELTA, candidates=6, valid=6, evaluations=884/3000
+[Beam Iter 37] selected=1, best_agreement=0.9685, best_states=6, n_samples=[2001]
+[Beam Iter 38] op=DELETE+MERGE, candidates=8, valid=8, evaluations=892/3000
+[Beam Iter 38] selected=1, best_agreement=0.9327, best_states=5, n_samples=[3001]
+  [MATA] Wrote 40 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 39] op=DELTA, candidates=5, valid=5, evaluations=897/3000
+[Beam Iter 39] selected=1, best_agreement=0.9327, best_states=5, n_samples=[3001]
+[Beam Iter 40] op=DELETE+MERGE, candidates=5, valid=5, evaluations=902/3000
+[Beam Iter 40] selected=1, best_agreement=0.8896, best_states=3, n_samples=[2001]
+  [MATA] Wrote 24 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/beam/dfa_explicit.mata
+[Beam Iter 41] op=DELTA, candidates=3, valid=3, evaluations=905/3000
+[Beam Iter 41] selected=1, best_agreement=0.8903, best_states=3, n_samples=[4001]
+[Beam] No candidates proposed. Stopping.
+  [SharedInit] Saved to /home/yihua/anchor-llm/test_result/regular_0.9_1000/DocumentReleaseWorkflow/instance_00/shared/shared_init.pkl (27 states, 1000 training samples, 1000 validation samples)
+  [Baseline budget] Using beam's actual evaluations (905) as SA/GA/PSO max_evaluations
+======================================================================
+[SA] Initialising Simulated Annealing…
+[Init] Using shared init: 27 states, 1000 validation samples, 1000 training samples
+[SA] Running 91 steps with T_max=10.0, T_min=0.001, candidate_pool=10 (budget=905)
+[SA] Initial DFA: 27 states, initial training agreement: 0.8890
+  [SA-iter1] NEW best from pool(10): agreement=0.8930, states=24, evals: 10/905
+  [SA-iter2] NEW best from pool(10): agreement=0.9020, states=23, evals: 20/905
+  [SA-iter3] NEW best from pool(10): agreement=0.9080, states=22, evals: 30/905
+  [SA-iter4] NEW best from pool(10): agreement=0.9120, states=21, evals: 40/905
+  [SA-iter5] NEW best from pool(10): agreement=0.9150, states=20, evals: 50/905
+  [SA-iter6] NEW best from pool(10): agreement=0.9150, states=19, evals: 60/905
+  [SA-iter7] NEW best from pool(10): agreement=0.9210, states=18, evals: 70/905
+  [SA-iter8] NEW best from pool(10): agreement=0.9350, states=17, evals: 80/905
+  [SA-iter9] NEW best from pool(10): agreement=0.9480, states=16, evals: 90/905
+  [SA-iter10] NEW best from pool(10): agreement=0.9430, states=15, evals: 100/905
+  [SA-iter11] NEW best from pool(10): agreement=0.9430, states=14, evals: 110/905
+  [SA-iter12] NEW best from pool(10): agreement=0.9480, states=13, evals: 120/905
+  [SA-iter13] NEW best from pool(10): agreement=0.9480, states=12, evals: 130/905
+  [SA-iter14] NEW best from pool(10): agreement=0.9430, states=10, evals: 140/905
+  [SA-iter15] NEW best from pool(10): agreement=0.9340, states=9, evals: 150/905
+  [SA-iter16] NEW best from pool(10): agreement=0.9220, states=8, evals: 160/905
+  [SA-iter17] NEW best from pool(10): agreement=0.9050, states=7, evals: 170/905
+  [SA-iter18] NEW best from pool(10): agreement=0.8750, states=6, evals: 180/905
+  [SA-iter19] NEW best from pool(10): agreement=0.9250, states=5, evals: 190/905
+  [SA-iter20] NEW best from pool(10): agreement=0.8960, states=4, evals: 200/905
+  [SA-iter21] NEW best from pool(10): agreement=0.8750, states=3, evals: 210/905
+  [SA-iter22] NEW best from pool(10): agreement=0.8800, states=3, evals: 218/905
+  [SA-iter23] NEW best from pool(10): agreement=0.8860, states=3, evals: 228/905
+  [SA-iter24] NEW best from pool(10): agreement=0.8870, states=3, evals: 235/905
+  [SA] Early stopping: 10 iterations without improvement
+[SA] Completed 335 evaluations
+[SA] Best DFA: 3 states, Best agreement: 0.8870
+[SA] Operator summary | evaluations=335/905
+  DELETE :    83 (24.78%)
+  MERGE  :    96 (28.66%)
+  DELTA  :   156 (46.57%)
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 247
+  Initial states (from shared_init): 27
+  [agreement mode] 111 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=5, training_agreement=0.9250
+======================================================================
+[GA-Original] Initialising Genetic Algorithm (mutation-only, no crossover)…
+[Init] Using shared init: 27 states, 1000 validation samples, 1000 training samples
+[GA-Init] Generating initial population of 10 individuals...
+[GA-Init] Initial DFA: 27 states, initial training agreement: 0.8890
+[GA-Init] Evaluating initial population
+
+[GA-Gen] Generation 1, evals: 11/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 25, Avg states: 25.8 [IMPROVED]
+
+[GA-Gen] Generation 2, evals: 21/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 25, Avg states: 25.7 [IMPROVED]
+
+[GA-Gen] Generation 3, evals: 31/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 22, Avg states: 24.6 [IMPROVED]
+
+[GA-Gen] Generation 4, evals: 41/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 21, Avg states: 23.2 [IMPROVED]
+
+[GA-Gen] Generation 5, evals: 51/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 21, Avg states: 21.7 [IMPROVED]
+
+[GA-Gen] Generation 6, evals: 61/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 20, Avg states: 20.9 (no improve: 1/10)
+
+[GA-Gen] Generation 7, evals: 71/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 19, Avg states: 20.3 [IMPROVED]
+
+[GA-Gen] Generation 8, evals: 81/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 18, Avg states: 19.7 [IMPROVED]
+
+[GA-Gen] Generation 9, evals: 91/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 17, Avg states: 18.9 [IMPROVED]
+
+[GA-Gen] Generation 10, evals: 101/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 17, Avg states: 18.1 (no improve: 1/10)
+
+[GA-Gen] Generation 11, evals: 111/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 16, Avg states: 17.3 (no improve: 2/10)
+
+[GA-Gen] Generation 12, evals: 121/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 16, Avg states: 16.8 [IMPROVED]
+
+[GA-Gen] Generation 13, evals: 131/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 15, Avg states: 15.9 [IMPROVED]
+
+[GA-Gen] Generation 14, evals: 141/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 14, Avg states: 15.0 [IMPROVED]
+
+[GA-Gen] Generation 15, evals: 151/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 13, Avg states: 13.9 [IMPROVED]
+
+[GA-Gen] Generation 16, evals: 161/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 12, Avg states: 12.9 [IMPROVED]
+
+[GA-Gen] Generation 17, evals: 171/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 11, Avg states: 12.0 [IMPROVED]
+
+[GA-Gen] Generation 18, evals: 181/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 10, Avg states: 11.5 [IMPROVED]
+
+[GA-Gen] Generation 19, evals: 191/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 9, Avg states: 10.6 [IMPROVED]
+
+[GA-Gen] Generation 20, evals: 201/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 9.2 [IMPROVED]
+
+[GA-Gen] Generation 21, evals: 211/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 7.0 [IMPROVED]
+
+[GA-Gen] Generation 22, evals: 221/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 5.7 (no improve: 1/10)
+
+[GA-Gen] Generation 23, evals: 231/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.6 [IMPROVED]
+
+[GA-Gen] Generation 24, evals: 241/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.3 [IMPROVED]
+
+[GA-Gen] Generation 25, evals: 251/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 5.1 [IMPROVED]
+
+[GA-Gen] Generation 26, evals: 261/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.0 (no improve: 1/10)
+
+[GA-Gen] Generation 27, evals: 271/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.7 [IMPROVED]
+
+[GA-Gen] Generation 28, evals: 281/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.3 [IMPROVED]
+
+[GA-Gen] Generation 29, evals: 291/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 5.1 (no improve: 1/10)
+
+[GA-Gen] Generation 30, evals: 301/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 4.7 [IMPROVED]
+
+[GA-Gen] Generation 31, evals: 311/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 4.6 [IMPROVED]
+
+[GA-Gen] Generation 32, evals: 321/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 4.2 (no improve: 1/10)
+
+[GA-Gen] Generation 33, evals: 331/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.8 (no improve: 2/10)
+
+[GA-Gen] Generation 34, evals: 341/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.8 (no improve: 3/10)
+
+[GA-Gen] Generation 35, evals: 351/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.9 (no improve: 4/10)
+
+[GA-Gen] Generation 36, evals: 361/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.8 [IMPROVED]
+
+[GA-Gen] Generation 37, evals: 371/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.5 (no improve: 1/10)
+
+[GA-Gen] Generation 38, evals: 381/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.9 (no improve: 2/10)
+
+[GA-Gen] Generation 39, evals: 391/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.7 (no improve: 3/10)
+
+[GA-Gen] Generation 40, evals: 401/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.7 (no improve: 4/10)
+
+[GA-Gen] Generation 41, evals: 411/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.5 [IMPROVED]
+
+[GA-Gen] Generation 42, evals: 421/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.4 [IMPROVED]
+
+[GA-Gen] Generation 43, evals: 431/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.7 (no improve: 1/10)
+
+[GA-Gen] Generation 44, evals: 441/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.6 (no improve: 2/10)
+
+[GA-Gen] Generation 45, evals: 451/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.2 [IMPROVED]
+
+[GA-Gen] Generation 46, evals: 461/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.1 (no improve: 1/10)
+
+[GA-Gen] Generation 47, evals: 471/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.9 (no improve: 2/10)
+
+[GA-Gen] Generation 48, evals: 481/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.1 (no improve: 3/10)
+
+[GA-Gen] Generation 49, evals: 491/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.1 (no improve: 4/10)
+
+[GA-Gen] Generation 50, evals: 501/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.1 (no improve: 5/10)
+
+[GA-Gen] Generation 51, evals: 511/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.0 (no improve: 6/10)
+
+[GA-Gen] Generation 52, evals: 521/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.0 (no improve: 7/10)
+
+[GA-Gen] Generation 53, evals: 531/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.0 (no improve: 8/10)
+
+[GA-Gen] Generation 54, evals: 541/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.0 (no improve: 9/10)
+
+[GA-Gen] Generation 55, evals: 551/905
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 3.0 (no improve: 10/10)
+  [GA] Early stopping: 10 generations without improvement
+
+[GA-Original] Completed 55 generations, 382 candidates total, final evals: 561/905
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 382
+  Initial states (from shared_init): 27
+  [agreement mode] 41 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=9, training_agreement=0.9090
+======================================================================
+[PSO] Initialising Particle Swarm Optimisation (PSOAutomataOptimizer)…
+[Init] Using shared init: 27 states, 1000 validation samples, 1000 training samples
+    [GBEST UPDATE] New best: 27 states, agreement=0.8890, val_agr=1.0000, loss=0.1110
+[PSO Init] Initial DFA: 27 states, agreement=0.8890, val_agreement=1.0000
+[PSO Init] Iterative DFA refinement mode: each particle keeps a current DFA.
+
+[PSO] Starting optimization...
+  Initial DFA: 27 states, initial training agreement: 0.8890
+  Particles=5, candidate_pool_per_particle=5, iterations=37
+
+[PSO] Starting iterative DFA-level optimization...
+  Particles: 5
+  Candidate pool per particle: 5
+  Iterations: 37
+  Initial states: 27
+  Particle state: current DFA is carried to the next iteration
+    [GBEST UPDATE] iter=1 particle=0 candidate=1 New best: 25 states, agreement=0.8810, loss=0.0449
+    [GBEST UPDATE] iter=2 particle=0 candidate=1 New best: 24 states, agreement=0.8880, loss=0.0009
+    [GBEST UPDATE] iter=2 particle=3 candidate=0 New best: 24 states, agreement=0.9060, loss=-0.0171
+    [GBEST UPDATE] iter=3 particle=0 candidate=2 New best: 21 states, agreement=0.8880, loss=-0.1102
+    [GBEST UPDATE] iter=4 particle=0 candidate=4 New best: 20 states, agreement=0.8990, loss=-0.1583
+    [GBEST UPDATE] iter=5 particle=0 candidate=0 New best: 19 states, agreement=0.9190, loss=-0.2153
+    [GBEST UPDATE] iter=6 particle=0 candidate=2 New best: 18 states, agreement=0.9230, loss=-0.2563
+    [GBEST UPDATE] iter=6 particle=1 candidate=1 New best: 15 states, agreement=0.8890, loss=-0.3334
+    [GBEST UPDATE] iter=7 particle=1 candidate=4 New best: 14 states, agreement=0.8900, loss=-0.3715
+    [GBEST UPDATE] iter=8 particle=1 candidate=1 New best: 13 states, agreement=0.8860, loss=-0.4045
+    [GBEST UPDATE] iter=9 particle=1 candidate=0 New best: 12 states, agreement=0.8870, loss=-0.4426
+    [GBEST UPDATE] iter=10 particle=1 candidate=2 New best: 11 states, agreement=0.8820, loss=-0.4746
+    [GBEST UPDATE] iter=11 particle=1 candidate=1 New best: 10 states, agreement=0.8680, loss=-0.4976
+    [GBEST UPDATE] iter=12 particle=0 candidate=3 New best: 9 states, agreement=0.8450, loss=-0.5117
+    [GBEST UPDATE] iter=12 particle=1 candidate=2 New best: 9 states, agreement=0.8850, loss=-0.5517
+    [GBEST UPDATE] iter=13 particle=1 candidate=2 New best: 7 states, agreement=0.8530, loss=-0.5937
+    [GBEST UPDATE] iter=14 particle=1 candidate=2 New best: 6 states, agreement=0.8670, loss=-0.6448
+    [GBEST UPDATE] iter=15 particle=0 candidate=3 New best: 5 states, agreement=0.8810, loss=-0.6958
+    [GBEST UPDATE] iter=15 particle=1 candidate=4 New best: 5 states, agreement=0.8860, loss=-0.7008
+    [GBEST UPDATE] iter=16 particle=1 candidate=1 New best: 4 states, agreement=0.8620, loss=-0.7139
+    [GBEST UPDATE] iter=17 particle=3 candidate=4 New best: 5 states, agreement=0.9120, loss=-0.7268
+    [GBEST UPDATE] iter=19 particle=3 candidate=1 New best: 4 states, agreement=0.8840, loss=-0.7359
+    [GBEST UPDATE] iter=20 particle=3 candidate=0 New best: 3 states, agreement=0.8750, loss=-0.7639
+  [PSO] Early stopping: 10 iterations without improvement
+[PSO] Optimization stopped: PSO early stopping: no improvement for 10 iterations
+
+[PSO] Finished optimization
+  Evaluations: 588/905
+  Best agreement: 0.8750
+  Best states: 3, val_agr=0.8940
+
+[PSO] Optimization completed successfully
+  Best states: 3
+  Best agreement: 0.8750
+  Best validation agreement: 0.8940
+  Best loss: -0.7639
+  [PSO] Evaluations used: 588 / 905
+
+[PSO] Total candidates collected: 459
+[PSO] Operator summary | evaluations=588/905
+  DELETE :   379 (64.57%)
+  MERGE  :   135 (23.00%)
+  DELTA  :    73 (12.44%)
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 459
+  Initial states (from shared_init): 27
+  [agreement mode] 44 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=5, training_agreement=0.9120
+
+======================================================================
+  AUTOMATA: MultiObligationOrder
+======================================================================
+  [TEACHER] Loading automata DFA: multi_obligation_color_order.dot
+  DFA: 37 states, alphabet=['blue', 'dock', 'drop', 'green', 'move', 'pick', 'wait', 'yellow']
+  Selected test instances: 1
+    [00] len=7 label=1 seq=['pick', 'blue', 'green', 'move', 'drop', 'dock', 'yellow']
+
+[RUN SEARCH SUITE] methods=('beam', 'sa', 'ga', 'pso')  output_dir=/home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00
+--------------------------------------------
+[Beam Iter 0] op=INIT, candidates=1, valid=1, evaluations=1/3000
+[Beam Iter 0] selected=1, best_agreement=0.9030, best_states=26, n_samples=[1000]
+  [MATA] Wrote 208 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 1] op=DELTA, candidates=26, valid=26, evaluations=27/3000
+[Beam Iter 1] selected=1, best_agreement=0.9120, best_states=26, n_samples=[2001]
+[Beam Iter 2] op=DELETE+MERGE, candidates=45, valid=45, evaluations=72/3000
+[Beam Iter 2] selected=1, best_agreement=0.9095, best_states=25, n_samples=[2001]
+  [MATA] Wrote 200 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 3] op=DELTA, candidates=25, valid=25, evaluations=97/3000
+[Beam Iter 3] selected=1, best_agreement=0.9200, best_states=25, n_samples=[2001]
+[Beam Iter 4] op=DELETE+MERGE, candidates=44, valid=44, evaluations=141/3000
+[Beam Iter 4] selected=1, best_agreement=0.9331, best_states=24, n_samples=[1001]
+  [MATA] Wrote 192 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 5] op=DELTA, candidates=24, valid=24, evaluations=165/3000
+[Beam Iter 5] selected=1, best_agreement=0.9331, best_states=24, n_samples=[1001]
+[Beam Iter 6] op=DELETE+MERGE, candidates=43, valid=43, evaluations=208/3000
+[Beam Iter 6] selected=1, best_agreement=0.9310, best_states=23, n_samples=[2001]
+  [MATA] Wrote 184 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 7] op=DELTA, candidates=23, valid=23, evaluations=231/3000
+[Beam Iter 7] selected=1, best_agreement=0.9331, best_states=23, n_samples=[1001]
+[Beam Iter 8] op=DELETE+MERGE, candidates=42, valid=42, evaluations=273/3000
+[Beam Iter 8] selected=1, best_agreement=0.9411, best_states=22, n_samples=[1001]
+  [MATA] Wrote 176 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 9] op=DELTA, candidates=22, valid=22, evaluations=295/3000
+[Beam Iter 9] selected=1, best_agreement=0.9481, best_states=22, n_samples=[1001]
+[Beam Iter 10] op=DELETE+MERGE, candidates=41, valid=41, evaluations=336/3000
+[Beam Iter 10] selected=1, best_agreement=0.9440, best_states=21, n_samples=[2001]
+  [MATA] Wrote 168 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 11] op=DELTA, candidates=21, valid=21, evaluations=357/3000
+[Beam Iter 11] selected=1, best_agreement=0.9570, best_states=21, n_samples=[1001]
+[Beam Iter 12] op=DELETE+MERGE, candidates=40, valid=40, evaluations=397/3000
+[Beam Iter 12] selected=1, best_agreement=0.9491, best_states=20, n_samples=[1001]
+  [MATA] Wrote 160 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 13] op=DELTA, candidates=20, valid=20, evaluations=417/3000
+[Beam Iter 13] selected=1, best_agreement=0.9491, best_states=20, n_samples=[1001]
+[Beam Iter 14] op=DELETE+MERGE, candidates=39, valid=39, evaluations=456/3000
+[Beam Iter 14] selected=1, best_agreement=0.9481, best_states=19, n_samples=[1001]
+  [MATA] Wrote 152 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 15] op=DELTA, candidates=19, valid=19, evaluations=475/3000
+[Beam Iter 15] selected=1, best_agreement=0.9491, best_states=19, n_samples=[1001]
+[Beam Iter 16] op=DELETE+MERGE, candidates=38, valid=38, evaluations=513/3000
+[Beam Iter 16] selected=1, best_agreement=0.9461, best_states=18, n_samples=[1001]
+  [MATA] Wrote 144 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 17] op=DELTA, candidates=18, valid=18, evaluations=531/3000
+[Beam Iter 17] selected=1, best_agreement=0.9465, best_states=18, n_samples=[2001]
+[Beam Iter 18] op=DELETE+MERGE, candidates=37, valid=37, evaluations=568/3000
+[Beam Iter 18] selected=1, best_agreement=0.9441, best_states=17, n_samples=[1001]
+  [MATA] Wrote 136 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 19] op=DELTA, candidates=17, valid=17, evaluations=585/3000
+[Beam Iter 19] selected=1, best_agreement=0.9491, best_states=17, n_samples=[1001]
+[Beam Iter 20] op=DELETE+MERGE, candidates=36, valid=36, evaluations=621/3000
+[Beam Iter 20] selected=1, best_agreement=0.9491, best_states=16, n_samples=[1001]
+  [MATA] Wrote 128 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 21] op=DELTA, candidates=16, valid=16, evaluations=637/3000
+[Beam Iter 21] selected=1, best_agreement=0.9520, best_states=16, n_samples=[1001]
+[Beam Iter 22] op=DELETE+MERGE, candidates=35, valid=35, evaluations=672/3000
+[Beam Iter 22] selected=1, best_agreement=0.9515, best_states=15, n_samples=[2001]
+  [MATA] Wrote 120 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 23] op=DELTA, candidates=15, valid=15, evaluations=687/3000
+[Beam Iter 23] selected=1, best_agreement=0.9580, best_states=15, n_samples=[1001]
+[Beam Iter 24] op=DELETE+MERGE, candidates=34, valid=34, evaluations=721/3000
+[Beam Iter 24] selected=1, best_agreement=0.9720, best_states=12, n_samples=[1001]
+  [MATA] Wrote 96 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 25] op=DELTA, candidates=12, valid=12, evaluations=733/3000
+[Beam Iter 25] selected=1, best_agreement=0.9645, best_states=12, n_samples=[2001]
+[Beam Iter 26] op=DELETE+MERGE, candidates=31, valid=31, evaluations=764/3000
+[Beam Iter 26] selected=1, best_agreement=0.9680, best_states=10, n_samples=[1001]
+  [MATA] Wrote 80 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 27] op=DELTA, candidates=10, valid=10, evaluations=774/3000
+[Beam Iter 27] selected=1, best_agreement=0.9680, best_states=10, n_samples=[1001]
+[Beam Iter 28] op=DELETE+MERGE, candidates=27, valid=27, evaluations=801/3000
+[Beam Iter 28] selected=1, best_agreement=0.9660, best_states=9, n_samples=[2001]
+  [MATA] Wrote 72 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 29] op=DELTA, candidates=9, valid=9, evaluations=810/3000
+[Beam Iter 29] selected=1, best_agreement=0.9750, best_states=9, n_samples=[1001]
+[Beam Iter 30] op=DELETE+MERGE, candidates=21, valid=21, evaluations=831/3000
+[Beam Iter 30] selected=1, best_agreement=0.9730, best_states=8, n_samples=[1001]
+  [MATA] Wrote 64 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 31] op=DELTA, candidates=8, valid=8, evaluations=839/3000
+[Beam Iter 31] selected=1, best_agreement=0.9730, best_states=8, n_samples=[1001]
+[Beam Iter 32] op=DELETE+MERGE, candidates=18, valid=18, evaluations=857/3000
+[Beam Iter 32] selected=1, best_agreement=0.9720, best_states=7, n_samples=[1001]
+  [MATA] Wrote 56 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 33] op=DELTA, candidates=7, valid=7, evaluations=864/3000
+[Beam Iter 33] selected=1, best_agreement=0.9730, best_states=7, n_samples=[1001]
+[Beam Iter 34] op=DELETE+MERGE, candidates=16, valid=16, evaluations=880/3000
+[Beam Iter 34] selected=1, best_agreement=0.9660, best_states=5, n_samples=[1001]
+  [MATA] Wrote 40 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 35] op=DELTA, candidates=5, valid=5, evaluations=885/3000
+[Beam Iter 35] selected=1, best_agreement=0.9660, best_states=5, n_samples=[1001]
+[Beam Iter 36] op=DELETE+MERGE, candidates=7, valid=7, evaluations=892/3000
+[Beam Iter 36] selected=1, best_agreement=0.9160, best_states=4, n_samples=[2001]
+  [MATA] Wrote 32 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 37] op=DELTA, candidates=4, valid=4, evaluations=896/3000
+[Beam Iter 37] selected=1, best_agreement=0.9147, best_states=4, n_samples=[3001]
+[Beam Iter 38] op=DELETE+MERGE, candidates=4, valid=4, evaluations=900/3000
+[Beam Iter 38] selected=1, best_agreement=0.8032, best_states=3, n_samples=[1001]
+  [MATA] Wrote 24 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 39] op=DELTA, candidates=3, valid=3, evaluations=903/3000
+[Beam Iter 39] selected=1, best_agreement=0.8136, best_states=3, n_samples=[2001]
+[Beam Iter 40] op=DELETE+MERGE, candidates=3, valid=3, evaluations=906/3000
+[Beam Iter 40] selected=1, best_agreement=0.7301, best_states=2, n_samples=[4001]
+  [MATA] Wrote 16 transitions to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/beam/dfa_explicit.mata
+[Beam Iter 41] op=DELTA, candidates=2, valid=2, evaluations=908/3000
+[Beam Iter 41] selected=1, best_agreement=0.7295, best_states=2, n_samples=[5001]
+[Beam Iter 42] op=DELETE+MERGE, candidates=0, valid=0. Stopping.
+  [SharedInit] Saved to /home/yihua/anchor-llm/test_result/regular_0.9_1000/MultiObligationOrder/instance_00/shared/shared_init.pkl (26 states, 1000 training samples, 1000 validation samples)
+  [Baseline budget] Using beam's actual evaluations (909) as SA/GA/PSO max_evaluations
+======================================================================
+[SA] Initialising Simulated Annealing…
+[Init] Using shared init: 26 states, 1000 validation samples, 1000 training samples
+[SA] Running 91 steps with T_max=10.0, T_min=0.001, candidate_pool=10 (budget=909)
+[SA] Initial DFA: 26 states, initial training agreement: 0.9030
+  [SA-iter1] NEW best from pool(10): agreement=0.9140, states=24, evals: 10/909
+  [SA-iter2] NEW best from pool(10): agreement=0.9130, states=20, evals: 20/909
+  [SA-iter3] NEW best from pool(10): agreement=0.9240, states=19, evals: 30/909
+  [SA-iter4] NEW best from pool(10): agreement=0.9270, states=16, evals: 40/909
+  [SA-iter5] NEW best from pool(10): agreement=0.9260, states=14, evals: 50/909
+  [SA-iter6] NEW best from pool(10): agreement=0.9270, states=13, evals: 60/909
+  [SA-iter7] NEW best from pool(10): agreement=0.9340, states=12, evals: 70/909
+  [SA-iter8] NEW best from pool(10): agreement=0.9090, states=11, evals: 80/909
+  [SA-iter9] NEW best from pool(10): agreement=0.9280, states=9, evals: 90/909
+  [SA-iter10] NEW best from pool(10): agreement=0.9260, states=7, evals: 100/909
+  [SA-iter11] NEW best from pool(10): agreement=0.9240, states=6, evals: 110/909
+  [SA-iter13] NEW best from pool(10): agreement=0.9010, states=5, evals: 130/909
+  [SA-iter14] NEW best from pool(10): agreement=0.8960, states=4, evals: 140/909
+  [SA] Early stopping: 10 iterations without improvement
+[SA] Completed 240 evaluations
+[SA] Best DFA: 4 states, Best agreement: 0.8960
+[SA] Operator summary | evaluations=240/909
+  DELETE :    75 (31.25%)
+  MERGE  :    87 (36.25%)
+  DELTA  :    78 (32.50%)
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 188
+  Initial states (from shared_init): 26
+  [agreement mode] 65 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=5, training_agreement=0.9000
+======================================================================
+[GA-Original] Initialising Genetic Algorithm (mutation-only, no crossover)…
+[Init] Using shared init: 26 states, 1000 validation samples, 1000 training samples
+[GA-Init] Generating initial population of 10 individuals...
+[GA-Init] Initial DFA: 26 states, initial training agreement: 0.9030
+[GA-Init] Evaluating initial population
+
+[GA-Gen] Generation 1, evals: 11/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 20, Avg states: 22.0 [IMPROVED]
+
+[GA-Gen] Generation 2, evals: 21/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 19, Avg states: 20.5 [IMPROVED]
+
+[GA-Gen] Generation 3, evals: 31/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 20, Avg states: 20.1 [IMPROVED]
+
+[GA-Gen] Generation 4, evals: 41/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 19, Avg states: 19.2 [IMPROVED]
+
+[GA-Gen] Generation 5, evals: 51/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 17, Avg states: 18.2 [IMPROVED]
+
+[GA-Gen] Generation 6, evals: 61/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 16, Avg states: 17.1 [IMPROVED]
+
+[GA-Gen] Generation 7, evals: 71/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 15, Avg states: 15.7 [IMPROVED]
+
+[GA-Gen] Generation 8, evals: 81/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 10, Avg states: 14.0 [IMPROVED]
+
+[GA-Gen] Generation 9, evals: 91/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 10, Avg states: 11.4 [IMPROVED]
+
+[GA-Gen] Generation 10, evals: 101/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 9, Avg states: 10.4 [IMPROVED]
+
+[GA-Gen] Generation 11, evals: 111/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 8.9 [IMPROVED]
+
+[GA-Gen] Generation 12, evals: 121/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 7.1 (no improve: 1/10)
+
+[GA-Gen] Generation 13, evals: 131/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 4, Avg states: 6.1 (no improve: 2/10)
+
+[GA-Gen] Generation 14, evals: 141/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 3, Avg states: 5.0 (no improve: 3/10)
+
+[GA-Gen] Generation 15, evals: 151/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 3.6 [IMPROVED]
+
+[GA-Gen] Generation 16, evals: 161/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.8 (no improve: 1/10)
+
+[GA-Gen] Generation 17, evals: 171/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.4 (no improve: 2/10)
+
+[GA-Gen] Generation 18, evals: 181/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 [IMPROVED]
+
+[GA-Gen] Generation 19, evals: 191/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 1, Avg states: 1.9 (no improve: 1/10)
+
+[GA-Gen] Generation 20, evals: 201/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 2/10)
+
+[GA-Gen] Generation 21, evals: 211/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 3/10)
+
+[GA-Gen] Generation 22, evals: 221/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 4/10)
+
+[GA-Gen] Generation 23, evals: 231/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 5/10)
+
+[GA-Gen] Generation 24, evals: 241/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 6/10)
+
+[GA-Gen] Generation 25, evals: 251/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 7/10)
+
+[GA-Gen] Generation 26, evals: 261/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 8/10)
+
+[GA-Gen] Generation 27, evals: 271/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 9/10)
+
+[GA-Gen] Generation 28, evals: 281/909
+    [GA-Batch] Generated 10 neighbors
+  [GA-Gen] Min states: 2, Avg states: 2.0 (no improve: 10/10)
+  [GA] Early stopping: 10 generations without improvement
+
+[GA-Original] Completed 28 generations, 200 candidates total, final evals: 291/909
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 200
+  Initial states (from shared_init): 26
+  [agreement mode] 53 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=11, training_agreement=0.9120
+======================================================================
+[PSO] Initialising Particle Swarm Optimisation (PSOAutomataOptimizer)…
+[Init] Using shared init: 26 states, 1000 validation samples, 1000 training samples
+    [GBEST UPDATE] New best: 26 states, agreement=0.9030, val_agr=1.0000, loss=0.0970
+[PSO Init] Initial DFA: 26 states, agreement=0.9030, val_agreement=1.0000
+[PSO Init] Iterative DFA refinement mode: each particle keeps a current DFA.
+
+[PSO] Starting optimization...
+  Initial DFA: 26 states, initial training agreement: 0.9030
+  Particles=5, candidate_pool_per_particle=5, iterations=37
+
+[PSO] Starting iterative DFA-level optimization...
+  Particles: 5
+  Candidate pool per particle: 5
+  Iterations: 37
+  Initial states: 26
+  Particle state: current DFA is carried to the next iteration
+    [GBEST UPDATE] iter=1 particle=0 candidate=0 New best: 25 states, agreement=0.9030, loss=0.0585
+    [GBEST UPDATE] iter=1 particle=1 candidate=1 New best: 25 states, agreement=0.9040, loss=0.0575
+    [GBEST UPDATE] iter=1 particle=2 candidate=1 New best: 22 states, agreement=0.9040, loss=-0.0578
+    [GBEST UPDATE] iter=2 particle=2 candidate=2 New best: 21 states, agreement=0.9100, loss=-0.1023
+    [GBEST UPDATE] iter=3 particle=2 candidate=4 New best: 20 states, agreement=0.9120, loss=-0.1428
+    [GBEST UPDATE] iter=4 particle=2 candidate=2 New best: 19 states, agreement=0.9170, loss=-0.1862
+    [GBEST UPDATE] iter=5 particle=1 candidate=4 New best: 16 states, agreement=0.8030, loss=-0.1876
+    [GBEST UPDATE] iter=5 particle=2 candidate=2 New best: 18 states, agreement=0.9170, loss=-0.2247
+    [GBEST UPDATE] iter=6 particle=2 candidate=4 New best: 16 states, agreement=0.9200, loss=-0.3046
+    [GBEST UPDATE] iter=7 particle=2 candidate=1 New best: 15 states, agreement=0.9240, loss=-0.3471
+    [GBEST UPDATE] iter=8 particle=2 candidate=4 New best: 14 states, agreement=0.9250, loss=-0.3865
+    [GBEST UPDATE] iter=9 particle=2 candidate=4 New best: 13 states, agreement=0.8950, loss=-0.3950
+    [GBEST UPDATE] iter=10 particle=2 candidate=1 New best: 12 states, agreement=0.8970, loss=-0.4355
+    [GBEST UPDATE] iter=10 particle=4 candidate=0 New best: 12 states, agreement=0.9250, loss=-0.4635
+    [GBEST UPDATE] iter=11 particle=2 candidate=0 New best: 11 states, agreement=0.8980, loss=-0.4749
+    [GBEST UPDATE] iter=11 particle=3 candidate=1 New best: 6 states, agreement=0.8050, loss=-0.5742
+    [GBEST UPDATE] iter=12 particle=3 candidate=1 New best: 5 states, agreement=0.8070, loss=-0.6147
+    [GBEST UPDATE] iter=13 particle=3 candidate=4 New best: 4 states, agreement=0.8070, loss=-0.6532
+    [GBEST UPDATE] iter=14 particle=3 candidate=2 New best: 3 states, agreement=0.8080, loss=-0.6926
+    [GBEST UPDATE] iter=16 particle=4 candidate=1 New best: 5 states, agreement=0.8910, loss=-0.6987
+    [GBEST UPDATE] iter=17 particle=2 candidate=4 New best: 4 states, agreement=0.8660, loss=-0.7122
+    [GBEST UPDATE] iter=17 particle=4 candidate=0 New best: 4 states, agreement=0.9000, loss=-0.7462
+  [PSO] Early stopping: 10 iterations without improvement
+[PSO] Optimization stopped: PSO early stopping: no improvement for 10 iterations
+
+[PSO] Finished optimization
+  Evaluations: 627/909
+  Best agreement: 0.9000
+  Best states: 4, val_agr=0.9040
+
+[PSO] Optimization completed successfully
+  Best states: 4
+  Best agreement: 0.9000
+  Best validation agreement: 0.9040
+  Best loss: -0.7462
+  [PSO] Evaluations used: 627 / 909
+  [PSO] Early stopping: reached 2 states
+
+[PSO] Total candidates collected: 485
+[PSO] Operator summary | evaluations=627/909
+  DELETE :   303 (48.40%)
+  MERGE  :   142 (22.68%)
+  DELTA  :   181 (28.91%)
+
+[SELECT] select_by='agreement', agreement_threshold=0.9, state_threshold=5
+  Total candidates in history: 485
+  Initial states (from shared_init): 26
+  [agreement mode] 134 candidate(s) meet training_agreement >= 0.9.
+  Selected: states=4, training_agreement=0.9000
+
+
+  DocumentReleaseWorkflow  (teacher_states=34  initial_states=27)
+
+  Initial (RPNI):  train=0.8890  validation=1.0000
+  Beam evaluations used: 905  (SA/GA/PSO max_evaluations budget)
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | Method       | Train (Init→Final)   | Validation (Init→Final)  | States     | Time(s)    |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | BeamSearch   | 0.8890→0.9327 ✓      | 1.0000→0.9460            |          5 |       86.0 |
+  | SA           | 0.8890→0.9250 ✓      | 1.0000→0.9210            |          5 |      307.8 |
+  | GA           | 0.8890→0.9090 ✓      | 1.0000→0.9030            |          9 |      341.4 |
+  | PSO          | 0.8890→0.9120 ✓      | 1.0000→0.9130            |          5 |      231.3 |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  MultiObligationOrder  (teacher_states=37  initial_states=26)
+
+  Initial (RPNI):  train=0.9030  validation=1.0000
+  Beam evaluations used: 909  (SA/GA/PSO max_evaluations budget)
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | Method       | Train (Init→Final)   | Validation (Init→Final)  | States     | Time(s)    |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | BeamSearch   | 0.9030→0.9160 ✓      | 1.0000→0.9140            |          4 |       79.6 |
+  | SA           | 0.9030→0.9000 ✓      | 1.0000→0.8890            |          5 |      175.1 |
+  | GA           | 0.9030→0.9120 ✓      | 1.0000→0.9160            |         11 |      196.2 |
+  | PSO          | 0.9030→0.9000 ✓      | 1.0000→0.9040            |          4 |      234.1 |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  SecureHandshake  (teacher_states=33  initial_states=31)
+
+  Initial (RPNI):  train=0.8920  validation=1.0000
+  Beam evaluations used: 1317  (SA/GA/PSO max_evaluations budget)
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | Method       | Train (Init→Final)   | Validation (Init→Final)  | States     | Time(s)    |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  | BeamSearch   | 0.8920→0.9040 ✓      | 1.0000→0.9020            |          7 |      181.4 |
+  | SA           | 0.8920→0.9000 ✓      | 1.0000→0.8940            |          6 |      166.2 |
+  | GA           | 0.8920→0.9080 ✓      | 1.0000→0.9210            |         13 |      317.5 |
+  | PSO          | 0.8920→0.9250 ✓      | 1.0000→0.9170            |          5 |      350.8 |
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+
+======================================================================
+  Experiment Parameters
+======================================================================
+  Selected automata: SecureHandshake, DocumentReleaseWorkflow, MultiObligationOrder
+
+  [SecureHandshake]
+    agreement_threshold: 0.9
+    batch_size: 1000
+    beam_size: 1
+    delta: 0.01
+    edit_distance: 7
+    init_num_samples: 1000
+    max_evaluations: 3000
+    n_jobs: 4
+    num_test_instances: 5
+    parallel: True
+    prediction_cache_max_size: 200000
+    tau: 0.1
+    use_prediction_cache: True
+
+  [DocumentReleaseWorkflow]
+    agreement_threshold: 0.9
+    batch_size: 1000
+    beam_size: 1
+    delta: 0.01
+    edit_distance: 5
+    init_num_samples: 1000
+    max_evaluations: 3000
+    n_jobs: 4
+    num_test_instances: 10
+    parallel: True
+    prediction_cache_max_size: 200000
+    tau: 0.1
+    use_prediction_cache: True
+
+  [MultiObligationOrder]
+    agreement_threshold: 0.9
+    batch_size: 1000
+    beam_size: 1
+    delta: 0.01
+    edit_distance: 5
+    init_num_samples: 1000
+    max_evaluations: 3000
+    n_jobs: 4
+    num_test_instances: 10
+    parallel: True
+    prediction_cache_max_size: 200000
+    tau: 0.1
+    use_prediction_cache: True
+======================================================================
