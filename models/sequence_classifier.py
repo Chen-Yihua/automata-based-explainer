@@ -221,9 +221,26 @@ class SequenceClassifier:
         seqs_id = [[self.symbol2id.get(s, 0) for s in seq] for seq in seqs]
         # Pad
         X_pad = np.zeros((len(seqs_id), self.max_len), dtype=np.int64)
+        n_truncated = 0
         for i, seq in enumerate(seqs_id):
             l = min(len(seq), self.max_len)
+            if len(seq) > self.max_len:
+                n_truncated += 1
             X_pad[i, :l] = seq[:l]
+        if n_truncated:
+            # Silent truncation is dangerous here: the label this classifier
+            # returns for a truncated sequence describes only its first
+            # max_len symbols, but callers (e.g. perturbation sampling) keep
+            # pairing that label with the full, untruncated sequence -- a
+            # mismatch that corrupts training data without any error. This
+            # doesn't change what gets predicted (still the same truncation
+            # as before), just makes it visible instead of silent.
+            print(
+                f"  [WARNING] SequenceClassifier: {n_truncated}/{len(seqs_id)} "
+                f"sequence(s) longer than max_len={self.max_len} were truncated "
+                f"before prediction -- their labels describe only the first "
+                f"{self.max_len} symbols."
+            )
         vocab_size = max(self.symbol2id.values()) if self.symbol2id else 1
         return X_pad, vocab_size
 
