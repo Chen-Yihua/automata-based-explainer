@@ -729,19 +729,20 @@ def _common_init(shared_init: SharedInit,
     # for signature compatibility with DFALearner.propose_automata() (the beam-search
     # caller, which does read state['data']/['labels']/etc.), but SA/GA/PSO never
     # call propose_automata() and neither of those two functions ever reads state's
-    # contents -- so the 'data'/'labels' fields used to be a real per-call
-    # np.zeros(batch_size * 10_000) allocation (80MB at the default batch_size=1000)
-    # plus a copy of validation_data that nothing ever consumed. Keep the dict (so
-    # callers destructuring _common_init's 7-tuple don't need to change) but make
-    # it cheap.
+    # contents. 'data'/'labels' used to be a real per-call np.zeros(batch_size *
+    # 10_000) allocation (80MB at the default batch_size=1000) holding an
+    # all-zero labels array nothing ever consumed -- since nothing reads these
+    # two keys on the SA/GA/PSO path, they're left out entirely rather than kept
+    # as placeholders: a KeyError from any future code that does try to read
+    # them is a clearer signal than silently handing back all-zero labels.
+    # (Callers destructuring _common_init's 7-tuple only need `state` itself to
+    # be present, not any particular key inside it.)
     state: dict = {
         't_nsamples':       defaultdict(lambda: 0.),
         't_accepted':       defaultdict(lambda: 0.),
         't_order':          defaultdict(list),
         't_positives':      defaultdict(lambda: 0.),
         't_negatives':      defaultdict(lambda: 0.),
-        'data':             [],
-        'labels':           np.zeros(0, dtype=np.float64),
         'current_idx':      0,
     }
     state['t_order'][()] = []
