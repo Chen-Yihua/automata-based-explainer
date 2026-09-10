@@ -1,7 +1,7 @@
 # learner/__init__.py
 
 from .base import BaseAutomataLearner
-from .dfa_learner import DFALearner
+from .dfa_learner import DFALearner, DFASampler
 from .factory import LearnerFactory, get_learner
 
 __all__ = [
