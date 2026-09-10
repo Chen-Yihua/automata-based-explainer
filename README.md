@@ -131,7 +131,7 @@ python src/baselines/tune_baseline_params.py \
 - `cross_task_by_algo.csv` — 每個 (演算法, 參數組合) 跨六個任務平均後的完整排名。
 - `best_by_algo_cross_task.csv` — 每個演算法排名第一的參數組合。
 
-**`best_by_algo_cross_task.csv` 會被主實驗自動讀取**：`run_regular_experiment.py`/`run_realworld_experiment.py` 執行時，`src/experiments/runner.py` 會自動找 `test_result/tune_*/best_by_algo_cross_task.csv` 裡最新的一份並套用，不需要手動把數字抄進程式碼；如果從未跑過調參（找不到檔案），就照舊退回寫死的預設值（SA pool=10、GA population=10、PSO particles=5/pool=5）。
+**調參是獨立於主實驗之外的一次性步驟，主實驗不會在執行時自動讀取調參結果。** `src/experiments/runner.py` 的 `run_baseline()` 用的是固定寫死的值（SA candidate pool=10、GA population=10/tournament=2、PSO particles=5/candidate pool=5），這組值就是跨六個任務調參跑出來的結果。之後如果重新調參、選出不同的參數，要手動把 `run_baseline()` 裡對應的數字改掉。
 
 ## 結果整理與畫圖
 
