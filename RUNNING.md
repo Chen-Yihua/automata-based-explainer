@@ -28,13 +28,21 @@
 python examples/RPNI/run_regular_experiment.py --agreement_threshold 0.8 --batch_size 1000 --max_evaluations 3000
 ```
 
+```bash
+python examples/RPNI/run_regular_experiment.py --agreement_threshold 0.9 --batch_size 1000 --max_evaluations 3000
+```
+
 **Real-world**：
 
 ```bash
 python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.8 --batch_size 1000 --max_evaluations 3000
 ```
 
-**注意：上面兩個指令都只跑每個任務固定的單一 test instance，不會取平均、沒有變異數**——`DEFAULT_LANGUAGE_CONFIGS` 裡每個任務都寫了一條 `test_instance`，這條指令沒有蓋掉它，所以每個任務都是單次結果。論文表格裡每一格因此是單一 instance 的單次數字，不是多次重複的平均。
+```bash
+python examples/RPNI/run_realworld_experiment.py --agreement_threshold 0.9 --batch_size 1000 --max_evaluations 3000
+```
+
+**注意：上述指令都只跑每個任務固定的單一 test instance，不會取平均、沒有變異數**——`DEFAULT_LANGUAGE_CONFIGS` 裡每個任務都寫了一條 `test_instance`，這條指令沒有蓋掉它，所以每個任務都是單次結果。論文表格裡每一格因此是單一 instance 的單次數字，不是多次重複的平均。
 
 如果要改成每個任務隨機產生多條 test instance、各跑一次：
 
