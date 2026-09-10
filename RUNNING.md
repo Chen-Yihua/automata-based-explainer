@@ -92,14 +92,15 @@ Beam / SA / GA / PSO 的搜尋方法本身不要求初始 DFA 落在特定狀態
 
 ## 5. 確認結果趨勢
 
-對照 `test_result/regular_0.8_1000/`、`test_result/realworld_0.8_1000/` 裡的 `experiment_log.txt` 最下方表格。
+對照 `test_result/regular_0.8_1000/`、`test_result/realworld_0.8_1000/`、`test_result/regular_0.9_1000/`、`test_result/realworld_0.9_1000/` 裡的 `experiment_log.txt` 最下方表格。
 
-本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，改看下面這三個趨勢是否一致：
+本專案多浮點數運算，不同機器跑出來的數字不會逐位元相同，改看下面這幾個趨勢是否一致：
 
-1. beam 的 `time` 大部分最小
-2. beam 通常能用較少的 state 數達到門檻，但不是每個任務都同時贏 states 和 agreement
-3. 除了 wafer 任務，其他任務 beam 方法能達 agreement threshold 0.8
+1. beam 的 time 大部分最小（12 個任務裡 8 個 beam 最快，其餘 4 個被 SA/GA/PSO 些微超前）
+2. beam 通常能找到減少 state、且 agreement 符合門檻的解；若沒有任何候選達到門檻，beam 會回傳 training agreement 最大的候選作為最終解
+3. 門檻從 0.8 調到 0.9 時，regular tasks 通常會找到 states 較大，但 agreement 達門檻的候選；-而 real-world tasks 因沒有任何候選達到門檻，beam 會回傳 training agreement 最大的候選作為最終解
+4. 相較於 baseline，beam 通常能用較少或相同的 state 數達到門檻，但不是每個任務都同時贏 states 和 agreement
 
 ---
 
-最後更新：2026-09-09
+最後更新：2026-09-10
